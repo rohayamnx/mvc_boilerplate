@@ -30,36 +30,49 @@ An ASP.NET Core MVC boilerplate for internal web applications, featuring cookie-
 ### 1. Clone the repository
 
 ```powershell
-git clone https://github.com/YOUR-USERNAME/mvc_boilerplate.git
+git clone https://github.com/rohayamnx/mvc_boilerplate.git
 cd mvc_boilerplate
 ```
 
 ### 2. Configure app settings
 
-Copy `appsettings.json` and create `appsettings.Development.json` (already in `.gitignore`). At minimum, set the database connection string:
+The app runs on `appsettings.Development.json` (already in `.gitignore`). A template file `appsettings.Development.json.template` is provided — copy it and fill in your values:
+
+```powershell
+Copy-Item appsettings.Development.json.template appsettings.Development.json
+```
+
+Then edit `appsettings.Development.json` and set at minimum the database connection string:
 
 ```json
 {
   "ProjectName": "mvc_boilerplate",
   "ConnectionStrings": {
-    "DefaultConnection": "Server=YOUR_SERVER;Database=mvc_boilerplate;Trusted_Connection=True;TrustServerCertificate=True;Integrated Security=True;MultipleActiveResultSets=true"
+    "DefaultConnection": "Server=<YOUR_SERVER>;Database=mvc_boilerplate;Trusted_Connection=True;TrustServerCertificate=True;Integrated Security=True;MultipleActiveResultSets=true"
   },
   "App": {
     "BaseUrl": "https://localhost:8101"
   },
   "ActiveDirectory": {
-    "LdapPath": "LDAP://YOUR_AD_SERVER",
-    "Domain": "your-domain.local",
-    "Username": "",
-    "Password": ""
+    "LdapPath": "<YOUR_LDAP_PATH>",
+    "Domain": "<YOUR_DOMAIN>",
+    "Username": "<YOUR_AD_USERNAME>",
+    "Password": "<YOUR_AD_PASSWORD>"
   },
   "StaffHubApi": {
-    "BaseUrl": "https://YOUR_STAFFHUB_API",
-    "ApiKey": "your-api-key"
+    "BaseUrl": "https://localhost:7101",
+    "ApiKey": "<YOUR_API_KEY>"
   },
   "CacheSettings": {
     "StaffHubApi": {
-      "DurationMinutes": 10
+      "DurationMinutes": 2
+    }
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Information"
     }
   }
 }
@@ -106,7 +119,7 @@ This runs all EF Core migrations and seeds the default SuperAdmin account.
 ### 6. Run the application
 
 ```powershell
-dotnet run
+dotnet watch run
 ```
 
 The app starts at `https://localhost:8101` (or whatever port is configured).
