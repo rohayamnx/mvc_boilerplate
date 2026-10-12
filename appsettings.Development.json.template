@@ -1,0 +1,31 @@
+{
+  "ProjectName": "mvc_boilerplate",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=<YOUR_SERVER>;Database=mvc_boilerplate;Trusted_Connection=True;TrustServerCertificate=True;Integrated Security=True;MultipleActiveResultSets=true"
+  },
+  "App": {
+    "BaseUrl": "https://localhost:8101"
+  },
+  "ActiveDirectory": {
+    "LdapPath": "<YOUR_LDAP_PATH>",
+    "Domain": "<YOUR_DOMAIN>",
+    "Username": "<YOUR_AD_USERNAME>",
+    "Password": "<YOUR_AD_PASSWORD>"
+  },
+  "StaffHubApi": {
+    "BaseUrl": "https://localhost:7101",
+    "ApiKey": "<YOUR_API_KEY>"
+  },
+  "CacheSettings": {
+    "StaffHubApi": {
+      "DurationMinutes": 2
+    }
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Information"
+    }
+  }
+}

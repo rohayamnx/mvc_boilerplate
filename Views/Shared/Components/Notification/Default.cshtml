@@ -1,0 +1,302 @@
+@*
+    Shared notification (toast) component
+    Usage: Call showNotification(message, type) from JavaScript
+    Types: 'success', 'error', 'warning', 'info'
+    Helpers: showSuccess, showError, showWarning, showInfo, showNotification
+*@
+
+<div id="notification-container" class="fixed top-20 right-4 z-[9999999] space-y-3 pointer-events-none max-w-sm w-full sm:max-w-md md:max-w-lg lg:max-w-sm">
+    <!-- Notifications will be dynamically inserted here -->
+</div>
+
+<script>
+    // Global notification system
+    window.NotificationSystem = {
+        container: null,
+        queue: [],
+        isProcessing: false,
+        globalDelay: 100, // Default global delay in ms
+
+        init() {
+            this.container = document.getElementById('notification-container');
+            if (!this.container) {
+                console.error('Notification container not found');
+            }
+        },
+
+        setGlobalDelay(delay) {
+            this.globalDelay = delay;
+        },
+
+        show(message, type = 'info', duration = 5000) {
+            // Add to queue
+            this.queue.push({ message, type, duration });
+            this.processQueue();
+        },
+
+        processQueue() {
+            if (this.isProcessing || this.queue.length === 0) return;
+
+            this.isProcessing = true;
+
+            const processNext = () => {
+                if (this.queue.length === 0) {
+                    this.isProcessing = false;
+                    return;
+                }
+
+                const { message, type, duration } = this.queue.shift();
+                this.showImmediate(message, type, duration);
+
+                // Process next notification after global delay
+                setTimeout(processNext, this.globalDelay);
+            };
+
+            // Start processing immediately for the first notification
+            processNext();
+        },
+
+        showImmediate(message, type = 'info', duration = 5000) {
+            if (!this.container) {
+                this.init();
+            }
+
+
+            const notification = this.createNotification(message, type, duration);
+            this.container.appendChild(notification);
+
+            // Animate in with slight delay for better UX
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full', 'opacity-0', 'scale-95');
+                    notification.classList.add('translate-x-0', 'opacity-100', 'scale-100');
+                }, 50);
+            });
+
+            // Auto remove
+            if (duration > 0) {
+                setTimeout(() => {
+                    this.remove(notification);
+                }, duration);
+            }
+        },
+
+        createNotification(message, type, duration) {
+            const notification = document.createElement('div');
+            notification.className = `pointer-events-auto transform transition-all duration-500 ease-out translate-x-full opacity-0 scale-95 mb-3`;
+
+            const typeConfig = this.getTypeConfig(type);
+
+            notification.innerHTML = `
+                <div class="w-full bg-white dark:bg-gray-800 shadow-lg rounded-xl border border-gray-100 dark:border-gray-700 pointer-events-auto overflow-hidden">
+                    <div class="p-4">
+                        <div class="flex items-start gap-4">
+                            <!-- Icon -->
+                            <div class="flex-shrink-0">
+                                <i class="iconify text-2xl ${typeConfig.iconColor}" data-icon="${typeConfig.icon}"></i>
+                            </div>
+
+                            <!-- Content -->
+                            <div class="flex-1 min-w-0 pt-0.5">
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-0.5">${typeConfig.title}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">${message}</p>
+                            </div>
+
+                            <!-- Close Button -->
+                            <div class="flex-shrink-0 -mr-2 -mt-2">
+                                <button type="button"
+                                        class="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors duration-200"
+                                        onclick="window.NotificationSystem.remove(this.closest('.notification-item'))">
+                                    <i class="iconify text-xl" data-icon="tabler:x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            notification.classList.add('notification-item');
+            return notification;
+        },
+
+        getTypeConfig(type) {
+            const configs = {
+                success: {
+                    title: 'Success',
+                    iconColor: 'text-green-500',
+                    icon: 'tabler:circle-check'
+                },
+                error: {
+                    title: 'Error',
+                    iconColor: 'text-red-500',
+                    icon: 'tabler:alert-circle'
+                },
+                warning: {
+                    title: 'Warning',
+                    iconColor: 'text-amber-500',
+                    icon: 'tabler:alert-triangle'
+                },
+                info: {
+                    title: 'Information',
+                    iconColor: 'text-blue-500',
+                    icon: 'tabler:info-circle'
+                }
+            };
+
+            return configs[type] || configs.info;
+        },
+
+        remove(notification) {
+            if (!notification) return;
+
+            // Animate out with scale and slide
+            notification.classList.remove('translate-x-0', 'opacity-100', 'scale-100');
+            notification.classList.add('translate-x-full', 'opacity-0', 'scale-95');
+
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 500);
+        },
+
+        clear() {
+            if (!this.container) return;
+            const notifications = this.container.querySelectorAll('.notification-item');
+            notifications.forEach(notification => this.remove(notification));
+        }
+    };
+
+    // Global function for easy access
+    window.showNotification = function(message, type = 'info', duration = 5000) {
+        window.NotificationSystem.show(message, type, duration);
+    };
+
+
+    // Enhanced notification functions for common use cases
+    window.showSuccess = function(message, duration = 5000) {
+        showNotification(message, 'success', duration);
+    };
+
+    window.showError = function(message, duration = 7000) {
+        showNotification(message, 'error', duration);
+    };
+
+    window.showWarning = function(message, duration = 6000) {
+        showNotification(message, 'warning', duration);
+    };
+
+    window.showInfo = function(message, duration = 5000) {
+        showNotification(message, 'info', duration);
+    };
+
+    // Global delay configuration
+    window.setNotificationDelay = function(delay) {
+        window.NotificationSystem.setGlobalDelay(delay);
+    };
+
+    // Clear all notifications and queue
+    window.clearAllNotifications = function() {
+        window.NotificationSystem.clear();
+        window.NotificationSystem.queue = [];
+        window.NotificationSystem.isProcessing = false;
+    };
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        window.NotificationSystem.init();
+
+        // Dynamically adjust notification position based on header height
+        function adjustNotificationPosition() {
+            const header = document.querySelector('header');
+            if (header) {
+                const headerHeight = header.offsetHeight;
+                const container = document.getElementById('notification-container');
+                if (container) {
+                    // Add some padding (16px) below the header
+                    const topPosition = headerHeight + 16;
+                    container.style.top = topPosition + 'px';
+
+                    // Update CSS custom property for consistency
+                    document.documentElement.style.setProperty('--header-height', topPosition + 'px');
+                }
+            }
+        }
+
+        // Adjust position on load
+        adjustNotificationPosition();
+
+        // Adjust position on window resize (header height might change)
+        window.addEventListener('resize', adjustNotificationPosition);
+
+        // Observe header changes (in case header content changes dynamically)
+        const header = document.querySelector('header');
+        if (header && window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(adjustNotificationPosition);
+            resizeObserver.observe(header);
+        }
+    });
+</script>
+
+<style>
+    @@keyframes shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+    }
+
+    .notification-progress {
+        transition: width linear;
+    }
+
+    /* Enhanced notification animations */
+    .notification-item {
+        will-change: transform, opacity;
+    }
+
+    /* Backdrop blur support */
+    @@supports (backdrop-filter: blur(10px)) {
+        .notification-item .backdrop-blur-sm {
+            backdrop-filter: blur(4px);
+        }
+    }
+
+    /* Mobile responsive adjustments */
+    @@media (max-width: 640px) {
+        #notification-container {
+            top: 4.5rem; /* Account for mobile header height */
+            right: 1rem;
+            left: 1rem;
+            max-width: none;
+        }
+
+        .notification-item {
+            margin-bottom: 0.75rem;
+        }
+
+        .notification-item .w-full {
+            font-size: 0.875rem;
+        }
+    }
+
+    /* Tablet responsive adjustments */
+    @@media (min-width: 641px) and (max-width: 1024px) {
+        #notification-container {
+            top: 5rem; /* Account for tablet header height */
+        }
+    }
+
+    /* Ensure notifications appear above modals and overlays */
+    #notification-container {
+        z-index: 9999999 !important;
+    }
+
+    /* Dynamic header height adjustment */
+    :root {
+        --header-height: 5rem; /* Default header height */
+    }
+
+    /* Use CSS custom property for better flexibility */
+    #notification-container {
+        top: var(--header-height, 5rem);
+    }
+</style>

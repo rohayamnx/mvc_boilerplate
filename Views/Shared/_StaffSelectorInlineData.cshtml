@@ -1,0 +1,4 @@
+@* Renders the server-provided staff list (ViewBag.StaffSelectorJson) as an inline JSON
+   block that staff autocompletes read from instead of calling a client-side API.
+   The controller action must set ViewBag.StaffSelectorJson before rendering the page. *@
+<script type="application/json" id="staffSelectorInlineData">@Html.Raw((string)(ViewBag.StaffSelectorJson ?? "[]"))</script>

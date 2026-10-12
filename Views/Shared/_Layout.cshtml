@@ -1,0 +1,251 @@
+﻿@{
+    // Configure available languages for Google Translate
+    ViewBag.AvailableLanguages = new Dictionary<string, (string Code, string Badge)>
+    {
+        { "English", ("en", "EN") },
+        { "Malay", ("ms", "MS") },
+        { "Japanese", ("ja", "JA") },
+        { "Chinese (Simplified)", ("zh-CN", "CN") },
+        { "Chinese (Traditional)", ("zh-TW", "TW") },
+        { "Tamil", ("ta", "TA") }
+        @* { "Hindi", ("hi", "HI") }, *@
+        @* { "Arabic", ("ar", "AR") },
+        { "Spanish", ("es", "ES") },
+        { "French", ("fr", "FR") },
+        { "German", ("de", "DE") },     
+        { "Korean", ("ko", "KO") } *@
+    };
+}
+<!DOCTYPE html>
+<html lang="en"
+     >
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/js/bundle.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body 
+    x-data="{ 
+        page: '@(ViewData["Module"])', 
+        loaded: true, 
+        darkMode: false, 
+        colorTheme: localStorage.getItem('theme') || 'light', 
+        stickyMenu: false, 
+        sidebarToggle: false, 
+        scrollTop: false, 
+        menuToggle: false 
+    }"
+     x-init="
+         darkMode = colorTheme === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches : colorTheme === 'dark';
+         localStorage.getItem('theme') || localStorage.setItem('theme', colorTheme)"
+    :class="{'dark bg-gray-900': darkMode === true}"
+    class="relative flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <partial name="_NavSideBar" />
+    <!-- Sidebar -->
+    
+    @* <div class="relative flex flex-col flex-1 overflow-x-hidden overflow-y-auto"> *@
+    <div class="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        <!-- Header -->
+        <partial name="_NavHeader" />
+        <!-- Header -->
+
+        <main class="mb-auto">
+            @RenderBody()
+        </main>
+
+        <!-- Footer -->
+        <partial name="_Footer" />
+        <!-- Footer -->
+    </div>
+
+    <!-- Global Notification System -->
+    @await Component.InvokeAsync("Notification")
+
+    <!-- Shared JavaScript Constants and Error Messages -->
+    <script src="~/js/bundle.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+    
+    <!-- Hidden Google Translate Element -->
+    <div id="google_translate_element"></div>
+    
+    <!-- Google Translate Script with Lazy Loading -->
+    <script type="text/javascript">
+        // Global variables for Google Translate
+        window.googleTranslateLoaded = false;
+        window.googleTranslateScriptAdded = false;
+
+        function googleTranslateElementInit() {
+            try {
+                if (typeof google !== 'undefined' && google.translate) {
+                    new google.translate.TranslateElement({
+                        pageLanguage: 'en',
+                        includedLanguages: '@string.Join(",", ((Dictionary<string, (string Code, string Badge)>)ViewBag.AvailableLanguages).Values.Select(v => v.Code))',
+                        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                        autoDisplay: false
+                    }, 'google_translate_element');
+                    window.googleTranslateLoaded = true;
+                }
+            } catch (error) {
+                // Silently handle - user will be prompted when they try to use translation
+            }
+        }
+
+        // Load Google Translate script only when needed
+        function loadGoogleTranslateScript() {
+            if (window.googleTranslateScriptAdded) {
+                return Promise.resolve(window.googleTranslateLoaded);
+            }
+            
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+                script.async = true;
+                
+                script.onload = () => {
+                    window.googleTranslateScriptAdded = true;
+                    // Wait a bit for initialization
+                    setTimeout(() => resolve(window.googleTranslateLoaded), 500);
+                };
+                
+                script.onerror = () => {
+                    window.googleTranslateScriptAdded = true;
+                    reject(new Error('Google Translate script failed to load'));
+                };
+                
+                document.body.appendChild(script);
+            });
+        }
+
+        // Function to change language programmatically using Google Translate Cookie API
+        async function changeLanguage(langCode, badgeCode) {
+            // Load Google Translate if not already loaded
+            if (!window.googleTranslateScriptAdded) {
+                try {
+                    await loadGoogleTranslateScript();
+                } catch (error) {
+                    alert('Translation service is currently unavailable.\n\nThis may be due to:\n• Browser tracking prevention blocking third-party scripts\n• Network connectivity issues\n\nTo enable translation, please allow third-party cookies for this site in your browser settings.');
+                    return;
+                }
+            }
+            
+            // Check if Google Translate is available
+            if (!window.googleTranslateLoaded || typeof google === 'undefined' || !google.translate) {
+                alert('Translation service could not be initialized.\n\nPlease disable tracking prevention or allow third-party cookies for this site to use translation features.');
+                return;
+            }
+            
+            // Update badge
+            const badge = document.getElementById('lang-badge');
+            if (badge) {
+                badge.textContent = badgeCode;
+            }
+
+            // Highlight selected language
+            document.querySelectorAll('.language-option').forEach(btn => {
+                btn.classList.remove('bg-brand-light', 'text-brand', 'dark:bg-brand-light/20');
+            });
+            const selectedBtn = document.querySelector(`[data-lang="${langCode}"]`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('bg-brand-light', 'text-brand', 'dark:bg-brand-light/20');
+            }
+
+            // Use Google Translate's cookie method
+            function setCookie(name, value, days) {
+                const maxAge = days ? `; max-age=${days * 24 * 60 * 60}` : '';
+                document.cookie = `${name}=${value}${maxAge}; path=/`;
+            }
+
+            // Set Google Translate cookies
+            const languagePair = langCode === 'en' ? '' : `en/${langCode}`;
+            
+            // Delete existing Google Translate cookies
+            document.cookie = 'googtrans=; max-age=0; path=/;';
+            document.cookie = 'googtrans=; max-age=0; path=/; domain=' + window.location.hostname;
+            
+            // Set new language cookie
+            if (languagePair) {
+                setCookie('googtrans', `/en/${langCode}`, 365);
+                document.cookie = `googtrans=/en/${langCode}; path=/; domain=${window.location.hostname}`;
+            }
+            
+            // Save preference
+            localStorage.setItem('preferredLanguage', langCode);
+            localStorage.setItem('preferredLanguageBadge', badgeCode);
+            
+            // Reload page to apply translation
+            window.location.reload();
+        }
+
+        // Restore language preference on page load
+        window.addEventListener('load', function() {
+            const savedLang = localStorage.getItem('preferredLanguage');
+            const savedBadge = localStorage.getItem('preferredLanguageBadge');
+            
+            // Only load Google Translate if user has a saved preference (has used it before)
+            if (savedLang && savedBadge && savedLang !== 'en') {
+                loadGoogleTranslateScript().catch(() => {
+                    // Silently fail - tracking prevention is blocking it
+                });
+                
+                // Update badge
+                const badge = document.getElementById('lang-badge');
+                if (badge) {
+                    badge.textContent = savedBadge;
+                }
+                
+                // Highlight selected language
+                const selectedBtn = document.querySelector(`[data-lang="${savedLang}"]`);
+                if (selectedBtn) {
+                    selectedBtn.classList.add('bg-brand-light', 'text-brand', 'dark:bg-brand-light/20');
+                }
+            }
+            
+            // Auto-hide Google Translate notification bar
+            function hideGoogleTranslateToolbar() {
+                const frames = document.querySelectorAll('iframe.goog-te-banner-frame, iframe.skiptranslate');
+                frames.forEach(frame => {
+                    frame.style.display = 'none';
+                });
+                
+                const toolbar = document.querySelector('.goog-te-banner-frame');
+                if (toolbar) {
+                    toolbar.style.display = 'none';
+                }
+                
+                // Reset body top position
+                document.body.style.top = '0';
+                document.documentElement.style.top = '0';
+            }
+            
+            // Hide immediately
+            hideGoogleTranslateToolbar();
+            
+            // Keep checking and hiding (Google sometimes adds it after page load)
+            const observer = new MutationObserver(hideGoogleTranslateToolbar);
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // Also check periodically for the first 3 seconds
+            let checkCount = 0;
+            const intervalId = setInterval(() => {
+                hideGoogleTranslateToolbar();
+                checkCount++;
+                if (checkCount >= 6) {
+                    clearInterval(intervalId);
+                }
+            }, 500);
+        });
+    </script>
+    <!-- End Google Translate Script -->
+    
+    <script src="/_framework/aspnetcore-browser-refresh.js"></script>
+</body>
+</html>

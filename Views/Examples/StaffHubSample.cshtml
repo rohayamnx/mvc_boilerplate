@@ -1,0 +1,153 @@
+@*
+    =======================================================================
+    SAMPLE: StaffHub Staff Search Selector
+    =======================================================================
+    Demonstrates searching staff by Id / Name with data loaded from StaffHub
+    server-side (no client-side /api/staffapi call).
+
+    Pattern (mirrors iform_hra TrainingEvaluation Index):
+      1. Controller (ExamplesController.StaffHubSample) fetches active staff
+         from StaffHub via IStaffHubApiService.GetAllStaffAsync() and stores
+         the JSON in ViewBag.StaffSelectorJson.
+      2. This view includes <partial name="_StaffSelectorInlineData" /> in
+         the Scripts section — renders the JSON in a hidden script block.
+      3. The StaffSelector ViewComponent renders a searchable input +
+         dropdown. staff-selector.js reads the inline JSON on focus/input
+         and filters client-side.
+      4. On DOMContentLoaded, initialize each .staff-search-input.
+
+    NOTE: More StaffHub samples (department list, designation list, etc.)
+    will be added to this same page below the staff search section later.
+    =======================================================================
+*@
+@using mvc_boilerplate.Models.UI
+
+@{
+    ViewData["Title"] = "StaffHub Sample";
+}
+
+<div class="p-4 md:p-6 space-y-6 max-w-4xl">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-700 dark:text-white">StaffHub Sample</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Search staff by Id or Name. Data is loaded from StaffHub server-side.
+        </p>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- 1. STAFF SEARCH SELECTOR (loads from StaffHub)                 -->
+    <!-- ============================================================= -->
+    <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-surface-light space-y-4">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">1. Staff Search</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            Type a staff name or ID to search. Selecting a staff member fills the
+            hidden <code>StaffId</code> / <code>StaffName</code> fields (and optional
+            Department when enabled).
+        </p>
+
+        <form method="get" class="w-full">
+
+            <div class="mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        @await Component.InvokeAsync("StaffSelector", new StaffSelectorModel
+                        {
+                            InstanceId = "sample",
+                            Label = "Staff Name",
+                            IsRequired = false,
+                            IsReadOnly = false,
+                            StaffId = ViewData["StaffIdFilter"]?.ToString(),
+                            StaffName = ViewData["StaffNameFilter"]?.ToString(),
+                            ShowDepartment = false
+                        })
+                    </div>
+
+                    <!-- Search button -->
+                    <div class="flex flex-col gap-2 w-full lg:w-auto">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 invisible lg:block">&nbsp;</label>
+                        <div class="flex flex-row gap-3">
+                            <a asp-action="StaffHubSample"
+                            class="flex-1 lg:flex-none h-10 px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:hover:text-gray-200 transition rounded-lg border border-gray-300 dark:border-gray-600 dark:hover:border-gray-500">
+                                <i class="iconify w-4 h-4" data-icon="material-symbols-light:filter-alt-off"></i>
+                                Clear
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+           
+        </form>
+
+        <!-- Selected staff display (read-only demo) -->
+        <div id="selectedStaffDisplay" class="hidden mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+            <p class="text-sm text-blue-700 dark:text-blue-300">
+                Selected Staff ID: <span id="displayStaffId" class="font-semibold">—</span><br />
+                Selected Staff Name: <span id="displayStaffName" class="font-semibold">—</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- Future StaffHub samples will be added below here               -->
+    <!-- (department list, designation list, staff details, etc.)       -->
+    <!-- ============================================================= -->
+
+</div>
+
+@section Scripts {
+    <partial name="_StaffSelectorInlineData" />
+    <script src="~/js/staff-selector.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.StaffSelectorManager) {
+                if (!window.staffSelectorManager) {
+                    window.staffSelectorManager = new window.StaffSelectorManager();
+                }
+
+                // Initialize each staff search input (lazy loading — data loads on first focus)
+                const searchInputs = document.querySelectorAll('.staff-search-input');
+                searchInputs.forEach(input => {
+                    window.staffSelectorManager.initializeInstance(input);
+                });
+
+                // Close dropdowns when clicking outside
+                window.staffSelectorManager.setupGlobalClickHandler();
+
+                // Demo: show selected staff in the display panel
+                const hiddenStaffId = document.querySelector('input.selected-staff-id');
+                const hiddenStaffName = document.querySelector('input.selected-staff-name');
+                const displayPanel = document.getElementById('selectedStaffDisplay');
+                const displayId = document.getElementById('displayStaffId');
+                const displayName = document.getElementById('displayStaffName');
+
+                function updateDisplay() {
+                    const id = hiddenStaffId?.value || '';
+                    const name = hiddenStaffName?.value || '';
+                    if (id || name) {
+                        displayPanel.classList.remove('hidden');
+                        displayId.textContent = id || '—';
+                        displayName.textContent = name || '—';
+                    } else {
+                        displayPanel.classList.add('hidden');
+                    }
+                }
+
+                // Listen for changes on hidden inputs
+                if (hiddenStaffId) {
+                    const observer = new MutationObserver(updateDisplay);
+                    observer.observe(hiddenStaffId, { attributes: true, attributeFilter: ['value'] });
+                }
+                // Also update on input blur (value is set by JS, not always caught by MutationObserver)
+                document.querySelectorAll('.staff-search-input').forEach(input => {
+                    input.addEventListener('blur', () => setTimeout(updateDisplay, 200));
+                });
+
+                updateDisplay();
+            } else {
+                console.error('StaffSelectorManager not found. Ensure staff-selector.js is loaded.');
+            }
+        });
+    </script>
+}

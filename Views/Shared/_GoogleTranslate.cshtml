@@ -1,0 +1,60 @@
+@* Google Translate Widget Component *@
+<div class="relative" x-data="{ translateOpen: false }" @@click.outside="translateOpen = false">
+  <button
+    @@click.prevent="translateOpen = !translateOpen"
+    class="notranslate hover:text-dark-900 relative flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+    title="Select Language"
+  >
+    <!-- Google Icon -->
+    <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#4285F4"/>
+      <path d="M2 24c0 5.2 1.8 10 4.9 13.7L13.4 31C11.8 28.9 11 26.6 11 24s.8-4.9 2.4-7l-6.5-6.7C3.8 14 2 18.8 2 24z" fill="#34A853"/>
+      <path d="M24 46c5.6 0 10.6-2.1 14.5-5.5l-6.6-5.8C30.1 36.2 27.2 37 24 37c-6.1 0-11.3-4.1-13.1-9.6l-6.5 5.7C8.3 41.1 15.6 46 24 46z" fill="#FBBC04"/>
+      <path d="M44.5 20H24v8.5h11.8c-.8 2.4-2.3 4.5-4.3 5.9l6.6 5.8c4.7-4.3 7.4-10.7 7.4-17.7 0-1.3-.2-2.7-.5-4z" fill="#EA4335"/>
+    </svg>
+    
+    <!-- Language Badge -->
+    <span id="lang-badge" class="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-semibold text-white">
+      EN
+    </span>
+  </button>
+
+  <!-- Custom Dropdown Menu -->
+  <div
+    x-show="translateOpen"
+    x-transition:enter="transition ease-out duration-100"
+    x-transition:enter-start="opacity-0 scale-95"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-75"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-95"
+    class="shadow-theme-lg absolute left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0 z-999999 mt-3 w-64 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+    style="display: none;"
+  >
+    <div class="p-4">
+      <!-- Header -->
+      <div class="mb-3 flex items-center gap-2 border-b border-gray-200 pb-3 dark:border-gray-800">
+        <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#4285F4"/>
+          <path d="M2 24c0 5.2 1.8 10 4.9 13.7L13.4 31C11.8 28.9 11 26.6 11 24s.8-4.9 2.4-7l-6.5-6.7C3.8 14 2 18.8 2 24z" fill="#34A853"/>
+          <path d="M24 46c5.6 0 10.6-2.1 14.5-5.5l-6.6-5.8C30.1 36.2 27.2 37 24 37c-6.1 0-11.3-4.1-13.1-9.6l-6.5 5.7C8.3 41.1 15.6 46 24 46z" fill="#FBBC04"/>
+          <path d="M44.5 20H24v8.5h11.8c-.8 2.4-2.3 4.5-4.3 5.9l6.6 5.8c4.7-4.3 7.4-10.7 7.4-17.7 0-1.3-.2-2.7-.5-4z" fill="#EA4335"/>
+        </svg>
+        <span class="text-theme-sm font-medium text-gray-700 dark:text-gray-300">Select Language</span>
+      </div>
+
+      <!-- Language List -->
+      <div class="custom-scrollbar max-h-80 overflow-y-auto">
+        @foreach (var language in (Dictionary<string, (string Code, string Badge)>)ViewBag.AvailableLanguages)
+        {
+          <button 
+            onclick="changeLanguage('@language.Value.Code', '@language.Value.Badge')" 
+            class="language-option group w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 hover:bg-brand-light hover:text-brand dark:text-gray-300 dark:hover:bg-brand-light/10" 
+            data-lang="@language.Value.Code">
+            @language.Key
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

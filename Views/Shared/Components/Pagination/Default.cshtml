@@ -1,0 +1,154 @@
+@model mvc_boilerplate.Models.UI.PaginationInfo
+@using System.Collections.Generic
+
+@{
+    int startPage = 1;
+    int endPage = 1;
+    if (Model != null && Model.TotalPages > 1)
+    {
+        startPage = Math.Max(1, Model.CurrentPage - 2);
+        endPage = Math.Min(Model.TotalPages, Model.CurrentPage + 2);
+    }
+
+    // Calculate showing range
+    int startEntry = 0;
+    int endEntry = 0;
+    if (Model != null && Model.TotalItems > 0)
+    {
+        startEntry = ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+        endEntry = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalItems);
+    }
+
+    // Helper function to prepare route dictionary for Url.Action
+    Dictionary<string, string> GetRouteValues(int pageNumber)
+    {
+        Dictionary<string, string>? baseRoutes = null;
+        if (Model?.RouteValues is Dictionary<string, string> dict)
+        {
+            baseRoutes = dict;
+        }
+        else if (Model?.RouteValues is IDictionary<string, string> iDict)
+        {
+            baseRoutes = new Dictionary<string, string>(iDict);
+        }
+
+        var routeValues = baseRoutes != null
+            ? new Dictionary<string, string>(baseRoutes)
+            : new Dictionary<string, string>();
+
+        routeValues["page"] = pageNumber.ToString();
+
+        return routeValues;
+    }
+}
+
+@if (Model != null)
+{
+    <div class="py-4 px-6">
+        <div class="flex items-center justify-between">
+            @* Showing entries info - aligned left *@
+            @if (Model.TotalItems > 0)
+            {
+                <div class="text-left">
+                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Showing <strong class="text-gray-700 dark:text-gray-200">@startEntry</strong> to <strong class="text-gray-700 dark:text-gray-200">@endEntry</strong> of <strong class="text-gray-700 dark:text-gray-200">@Model.TotalItems</strong> results
+                    </span>
+                </div>
+            }
+            else
+            {
+                <div></div>
+            }
+
+            @* Pagination controls - aligned right *@
+            <div class="flex items-center gap-1">
+
+                @* Previous button *@
+                @if (Model.HasPrevious && Model.TotalPages > 1)
+                {
+                    <a href="@Url.Action(Model.ActionName, Model.ControllerName, GetRouteValues(Model.CurrentPage - 1))"
+                       class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-400 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-400 dark:hover:text-gray-200 transition-colors duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+                }
+                else
+                {
+                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-gray-300 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </span>
+                }
+
+                @* Page numbers *@
+                @if (startPage > 1)
+                {
+                    <a href="@Url.Action(Model.ActionName, Model.ControllerName, GetRouteValues(1))"
+                       class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-400 transition-colors duration-200">
+                        1
+                    </a>
+                    @if (startPage > 2)
+                    {
+                        <span class="inline-flex items-center justify-center w-9 h-9 text-sm font-medium text-gray-400 dark:text-gray-500">
+                            &hellip;
+                        </span>
+                    }
+                }
+
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                    @if (i == Model.CurrentPage)
+                    {
+                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold text-white shadow-sm"
+                              style="background-color: var(--brand);">
+                            @i
+                        </span>
+                    }
+                    else
+                    {
+                        <a href="@Url.Action(Model.ActionName, Model.ControllerName, GetRouteValues(i))"
+                           class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-400 transition-colors duration-200">
+                            @i
+                        </a>
+                    }
+                }
+
+                @if (endPage < Model.TotalPages)
+                {
+                    @if (endPage < Model.TotalPages - 1)
+                    {
+                        <span class="inline-flex items-center justify-center w-9 h-9 text-sm font-medium text-gray-400 dark:text-gray-500">
+                            &hellip;
+                        </span>
+                    }
+                    <a href="@Url.Action(Model.ActionName, Model.ControllerName, GetRouteValues(Model.TotalPages))"
+                       class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:text-gray-900 hover:border-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-400 transition-colors duration-200">
+                        @Model.TotalPages
+                    </a>
+                }
+
+                @* Next button *@
+                @if (Model.HasNext && Model.TotalPages > 1)
+                {
+                    <a href="@Url.Action(Model.ActionName, Model.ControllerName, GetRouteValues(Model.CurrentPage + 1))"
+                       class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-400 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-400 dark:hover:text-gray-200 transition-colors duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </a>
+                }
+                else
+                {
+                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white text-gray-300 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </span>
+                }
+
+            </div>
+        </div>
+    </div>
+}

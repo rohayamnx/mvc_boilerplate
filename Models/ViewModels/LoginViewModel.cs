@@ -1,0 +1,20 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace mvc_boilerplate.Models.ViewModels
+{
+    public class LoginViewModel
+    {
+        [Required]
+        [Display(Name = "Staff ID")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = string.Empty;
+
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
+
+        public string ReturnUrl { get; set; } = string.Empty;
+    }
+}

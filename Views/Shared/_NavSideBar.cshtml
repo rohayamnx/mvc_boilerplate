@@ -1,0 +1,291 @@
+<aside
+  :class="sidebarToggle ? 'translate-x-0 lg:hidden' : '-translate-x-full'"
+  class="sidebar fixed left-0 top-0 z-99999 flex h-screen w-[290px] flex-col overflow-y-hidden border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:static lg:translate-x-0"
+>
+<!-- <aside
+  :class="sidebarToggle ? 'translate-x-0 lg:w-[90px]' : '-translate-x-full'"
+  class="sidebar fixed left-0 top-0 z-99999 flex h-screen w-[290px] flex-col overflow-y-hidden border-r bg-gradient-brand border-brand-light px-5 pt-16 lg:pt-0 dark:border-gray-800 lg:static lg:translate-x-0"
+> -->
+  <!-- SIDEBAR HEADER -->
+  <div class="flex items-center gap-3 px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+     <a href="/">
+      <span class="logo" :class="sidebarToggle ? 'hidden' : ''">
+        <img class="dark:hidden" src="/img/logo/logo.png" alt="Logo" />
+        <img
+          class="hidden dark:block"
+          src="/img/logo/logo-dark.png"
+          alt="Logo"
+        />
+        <p class="text-sm font-bold text-brand dark:text-brand mt-1 tracking-widest uppercase text-center">MVC Boilerplate</p>
+      </span>
+
+      <img
+        class="logo-icon"
+        :class="sidebarToggle ? 'lg:block' : 'hidden'"
+        src="/img/logo/logo.png"
+        alt="Logo"
+      />
+    </a>
+  </div>
+  <!-- SIDEBAR HEADER -->
+
+  <div class="flex flex-col flex-1 overflow-y-auto duration-300 ease-linear no-scrollbar">
+    <!-- Main Navigation -->
+    <nav class="px-4 py-6">
+      <ul class="flex flex-col gap-1">
+        <!-- Menu Item Dashboard -->
+        <li>
+          <a
+            asp-controller="Dashboard"
+            asp-action="Index"
+            class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="page === 'Dashboard' ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'"
+          >
+            <i class="iconify w-5 h-5" data-icon="heroicons:home-20-solid"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        @if (User.HasClaim("Permission", "UserAccount.View"))
+        {
+          <li>
+            <a
+              asp-controller="UserAccount"
+              asp-action="Index"
+              class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              :class="page === 'UserAccount' ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'"
+            >
+              <i class="iconify w-5 h-5" data-icon="heroicons:user-20-solid"></i>
+              <span>User</span>
+            </a>
+          </li>
+        }
+
+        @if (User.HasClaim("Permission", "RolePermission.View"))
+        {
+          <li>
+            <a
+              asp-controller="RolePermission"
+              asp-action="Index"
+              class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              :class="page === 'RolePermission' ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'"
+            >
+              <i class="iconify w-5 h-5" data-icon="heroicons:shield-check-20-solid"></i>
+              <span>Role &amp; Permission</span>
+            </a>
+          </li>
+        }
+
+        <li>
+            <a
+              asp-controller="Examples"
+              asp-action="SharedComponentsSample"
+              class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              :class="page === 'Examples' ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'"
+            >
+              <i class="iconify w-5 h-5" data-icon="heroicons:code-bracket-square-20-solid"></i>
+              <span>Shared Components Sample</span>
+            </a>
+        </li>
+
+        <li>
+            <a
+              asp-controller="Examples"
+              asp-action="CalendarSample"
+              class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              :class="page === 'Examples' ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'"
+            >
+              <i class="iconify w-5 h-5" data-icon="heroicons:calendar-days-20-solid"></i>
+              <span>Calendar Sample</span>
+            </a>
+        </li>
+
+        <li>
+            <a
+              asp-controller="Examples"
+              asp-action="StaffHubSample"
+              class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              :class="page === 'Examples' ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'"
+            >
+              <i class="iconify w-5 h-5" data-icon="heroicons:users-20-solid"></i>
+              <span>StaffHub Sample</span>
+            </a>
+        </li>
+
+      </ul>
+
+      <!-- Shortcuts Section -->
+      <div class="mt-8">
+        <h3 class="px-3 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Shortcuts
+        </h3>
+        <ul class="flex flex-col gap-1">
+
+          @if (User.HasClaim("Permission", "TracingControl.View"))
+          {
+            <li>
+              <a
+                asp-controller="TracingControl"
+                asp-action="Index"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
+              >
+                <i class="iconify w-5 h-5" data-icon="heroicons:link-20-solid"></i>
+                <span>Tracing Control</span>
+              </a>
+            </li>
+           }
+
+ 
+        </ul>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Profile Section at Bottom -->
+  <div class="border-t border-gray-200 dark:border-gray-700 px-4 py-4">
+    <!-- User Profile Display -->
+    <div 
+      class="relative"
+      x-data="{ profileOpen: false }"
+      @@click.outside="profileOpen = false"
+    >
+      <button
+        @@click="profileOpen = !profileOpen"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+      >
+        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-medium text-xs">
+          @{
+            var userName = (User.Identity?.IsAuthenticated ?? false) ? User.Identity?.Name : "Guest";
+            var initials = string.Join("", (userName ?? "").Split(' ').Take(2).Select(n => n.FirstOrDefault())).ToUpper();
+          }
+          @initials
+        </div>
+        <span class="flex-1 text-left text-sm font-medium text-gray-900 dark:text-white">
+          @userName
+        </span>
+        <i class="iconify w-5 h-5 text-gray-400" data-icon="heroicons:ellipsis-vertical-20-solid"></i>
+      </button>
+
+      <!-- Dropdown Menu -->
+      <div
+        x-show="profileOpen"
+        x-transition
+        class="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2"
+      >
+        <!-- User Email -->
+        <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            @((User.Identity?.IsAuthenticated ?? false) ? (User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.Identity?.Name) : "guest@example.com")
+          </p>
+        </div>
+
+        <!-- Theme -->
+        <button
+          class="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+          x-data="{ themeButtonEl: null }"
+          x-init="themeButtonEl = $el"
+          @@mouseenter="$store.themeMenu.show($el)"
+          @@mouseleave="$store.themeMenu.hide()"
+        >
+          <span>Theme</span>
+          <i class="iconify w-4 h-4" data-icon="heroicons:chevron-right-20-solid"></i>
+        </button>
+
+   
+
+        <a
+          asp-controller="User"
+                asp-action="Profile"
+          class="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+        >
+          <span>Profile</span>
+        </a>
+
+        <!-- Sign out -->
+        <form asp-controller="Account" asp-action="Logout" method="post">
+          <button
+            type="submit"
+            class="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+          >
+            <span>Sign out</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Theme Submenu Portal (outside sidebar) -->
+<div
+  x-show="$store.themeMenu.isOpen"
+  @@mouseenter="$store.themeMenu.show()"
+  @@mouseleave="$store.themeMenu.hide()"
+  x-transition
+  :style="`position: fixed; left: ${$store.themeMenu.x}px; top: ${$store.themeMenu.y}px; z-index: 99999;`"
+  style="display: none;"
+  class="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-2"
+>
+  <!-- Light Theme -->
+  <button
+    @@click="colorTheme = 'light'; darkMode = false; localStorage.setItem('theme', 'light'); $store.themeMenu.hide();"
+    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+  >
+    <i class="iconify w-5 h-5" data-icon="heroicons:check-20-solid" x-show="colorTheme === 'light'"></i>
+    <span class="w-5 h-5" x-show="colorTheme !== 'light'"></span>
+    <i class="iconify w-5 h-5" data-icon="heroicons:sun-20-solid"></i>
+    <span>Light</span>
+  </button>
+
+  <!-- Dark Theme -->
+  <button
+    @@click="colorTheme = 'dark'; darkMode = true; localStorage.setItem('theme', 'dark'); $store.themeMenu.hide();"
+    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+  >
+    <i class="iconify w-5 h-5" data-icon="heroicons:check-20-solid" x-show="colorTheme === 'dark'"></i>
+    <span class="w-5 h-5" x-show="colorTheme !== 'dark'"></span>
+    <i class="iconify w-5 h-5" data-icon="heroicons:moon-20-solid"></i>
+    <span>Dark</span>
+  </button>
+
+  <!-- System Theme -->
+  <button
+    @@click="colorTheme = 'system'; darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches; localStorage.setItem('theme', 'system'); $store.themeMenu.hide();"
+    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+  >
+    <i class="iconify w-5 h-5" data-icon="heroicons:check-20-solid" x-show="colorTheme === 'system'"></i>
+    <span class="w-5 h-5" x-show="colorTheme !== 'system'"></span>
+    <i class="iconify w-5 h-5" data-icon="heroicons:computer-desktop-20-solid"></i>
+    <span>System</span>
+  </button>
+</div>
+
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.store('themeMenu', {
+      isOpen: false,
+      x: 0,
+      y: 0,
+      hideTimeout: null,
+      
+      show(element) {
+        if (this.hideTimeout) {
+          clearTimeout(this.hideTimeout);
+          this.hideTimeout = null;
+        }
+        
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          this.x = rect.right + 4;
+          this.y = rect.top;
+        }
+        this.isOpen = true;
+      },
+      
+      hide() {
+        this.hideTimeout = setTimeout(() => {
+          this.isOpen = false;
+        }, 100);
+      }
+    });
+  });
+</script>

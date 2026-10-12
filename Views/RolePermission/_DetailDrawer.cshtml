@@ -1,0 +1,192 @@
+@* Role details — right-side drawer (vanilla JS, no Alpine). *@
+
+<!-- Detail Drawer Slide-in -->
+<div id="detailDrawerSlide"
+     class="fixed inset-y-0 right-0 z-[999999] w-full max-w-lg border-l border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800 transform translate-x-full transition-transform duration-300 overflow-y-auto">
+    <div class="h-full flex flex-col">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4 dark:border-gray-700">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">Role Details</h2>
+                <p id="detailDrawerRoleName" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+            </div>
+            <button type="button" onclick="DetailDrawer.close()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="iconify text-xl" data-icon="tabler:x"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-6 py-5">
+            <!-- Loading -->
+            <div id="detailDrawerLoading" class="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                Loading role…
+            </div>
+            <!-- Content (label/value cards) -->
+            <div id="detailDrawerContent" class="grid gap-3 md:grid-cols-2 hidden">
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Role ID</p>
+                    <p id="detailRoleId" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Role Name</p>
+                    <p id="detailRoleName" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 md:col-span-2 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Description</p>
+                    <p id="detailDescription" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Status</p>
+                    <p class="mt-2">
+                        <span id="detailStatus" class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"></span>
+                    </p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Permissions</p>
+                    <p id="detailPermissionCount" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Users</p>
+                    <p id="detailUserCount" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Created By</p>
+                    <p id="detailCreatedBy" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Created At</p>
+                    <p id="detailCreatedAt" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Updated By</p>
+                    <p id="detailUpdatedBy" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white/55 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Updated At</p>
+                    <p id="detailUpdatedAt" class="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-100"></p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="detailDrawerOverlay"
+     class="fixed inset-0 z-[100000] bg-gray-950/50 backdrop-blur-[2px] hidden"
+     onclick="DetailDrawer.close()"></div>
+
+<script>
+window.DetailDrawer = (function () {
+    const slide       = document.getElementById('detailDrawerSlide');
+    const overlay     = document.getElementById('detailDrawerOverlay');
+    const loading     = document.getElementById('detailDrawerLoading');
+    const content     = document.getElementById('detailDrawerContent');
+    const roleNameEl  = document.getElementById('detailDrawerRoleName');
+
+    const fields = {
+        roleId:          document.getElementById('detailRoleId'),
+        roleName:        document.getElementById('detailRoleName'),
+        description:     document.getElementById('detailDescription'),
+        status:          document.getElementById('detailStatus'),
+        permissionCount: document.getElementById('detailPermissionCount'),
+        userCount:       document.getElementById('detailUserCount'),
+        createdBy:       document.getElementById('detailCreatedBy'),
+        createdAt:       document.getElementById('detailCreatedAt'),
+        updatedBy:       document.getElementById('detailUpdatedBy'),
+        updatedAt:       document.getElementById('detailUpdatedAt'),
+    };
+
+    // Move both elements to <body> so they are siblings of the scroll
+    // container, escaping the sticky header's GPU compositing layer in
+    // Chrome/Edge (same reason as _PermissionDrawer).
+    document.body.appendChild(slide);
+    document.body.appendChild(overlay);
+
+    function notify(msg, type) {
+        window._rolePermApp?.notify(msg, type ?? 'error');
+    }
+
+    function show(el) { el.classList.remove('hidden'); }
+    function hide(el) { el.classList.add('hidden'); }
+
+    // ── Open / Close ─────────────────────────────────────────────────
+
+    function open(role) {
+        hide(content);
+        show(loading);
+        roleNameEl.textContent = '';
+
+        overlay.classList.remove('hidden');
+        slide.classList.remove('translate-x-full');
+        document.body.style.overflow = 'hidden';
+
+        load(role);
+    }
+
+    function close() {
+        slide.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+        document.body.style.overflow = '';
+        setTimeout(function () {
+            hide(content);
+            show(loading);
+            roleNameEl.textContent = '';
+        }, 300);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────
+
+    function fmtDate(v) {
+        return v ? new Date(v).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+    }
+
+    function statusBadge(isActive) {
+        return isActive
+            ? { text: 'Active',   cls: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' }
+            : { text: 'Inactive', cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' };
+    }
+
+    // ── Load data ────────────────────────────────────────────────────
+
+    async function load(role) {
+        try {
+            const res = await fetch('/RolePermission/Detail/' + role.roleId, {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+            const d = await res.json();
+
+            roleNameEl.textContent          = d.roleName;
+            fields.roleId.textContent       = d.roleId;
+            fields.roleName.textContent     = d.roleName;
+            fields.description.textContent  = d.description || '-';
+            fields.permissionCount.textContent = d.permissionCount;
+            fields.userCount.textContent    = d.userCount;
+            fields.createdBy.textContent    = d.createdBy || '-';
+            fields.createdAt.textContent    = fmtDate(d.createdAt);
+            fields.updatedBy.textContent    = d.updatedBy || '-';
+            fields.updatedAt.textContent    = fmtDate(d.updatedAt);
+
+            const badge = statusBadge(d.isActive);
+            fields.status.textContent = badge.text;
+            fields.status.className   = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ' + badge.cls;
+
+            hide(loading);
+            show(content);
+        } catch (err) {
+            console.error(err);
+            hide(loading);
+            notify(err.message || 'Failed to load role', 'error');
+            close();
+        }
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !slide.classList.contains('translate-x-full')) close();
+    });
+
+    return { open: open, close: close };
+})();
+</script>

@@ -1,0 +1,368 @@
+@*
+    =======================================================================
+    SAMPLE: Using the shared DeleteModal + Notification components
+    =======================================================================
+    This is a reference sample, not a routed page. To actually render it,
+    add a trivial action to a controller, e.g.:
+
+        public IActionResult SharedComponentsSample() => View();
+
+    and navigate to /<Controller>/SharedComponentsSample.
+
+    It demonstrates FOUR shared components:
+      1. DeleteModal     — a configurable delete-confirm dialog (invoked PER PAGE).
+      2. Notification    — toast messages (rendered ONCE globally in _Layout,
+                           so you only CALL its JS helpers here — no markup needed).
+      3. CalendarPicker  — a reusable date picker (wwwroot/js/calendar-picker.js),
+                           shown twice: single-date selection and a From/To range.
+                           Add the input markup + call initCalendarPicker() per page.
+                           Mirrors the usage in ckd_tracing's Dashboard.
+
+    These are mirrored from the mrbs / ckd_tracing reference projects and the
+    DeleteModal + Notification pair is already used by RolePermission/Index.cshtml.
+    =======================================================================
+*@
+@using mvc_boilerplate.Models
+
+@{
+    ViewData["Title"] = "Shared Components Sample";
+}
+
+@* The antiforgery token is required for unsafe (DELETE/POST/PUT) requests.
+   It renders a hidden <input name="__RequestVerificationToken"> which the
+   delete handler below reads and sends as the RequestVerificationToken header. *@
+@Html.AntiForgeryToken()
+
+<div class="p-6 space-y-8 max-w-3xl">
+
+    <h1 class="text-2xl font-bold text-gray-700 dark:text-white">Shared Components Sample</h1>
+
+    <!-- ============================================================= -->
+    <!-- 1. TOAST NOTIFICATIONS (shared Notification component)         -->
+    <!-- ============================================================= -->
+    <section class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-surface-light space-y-3">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">1. Toast notifications</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            The Notification component is invoked once in <code>Views/Shared/_Layout.cshtml</code>,
+            so its globals are available on every page — <strong>do not</strong> render it per page.
+            Just call the helpers from JavaScript.
+        </p>
+
+        <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="showSuccess('Saved successfully.')"
+                    class="px-3 py-2 rounded-lg bg-green-600 text-white text-sm">showSuccess</button>
+            <button type="button" onclick="showError('Something went wrong.')"
+                    class="px-3 py-2 rounded-lg bg-red-600 text-white text-sm">showError</button>
+            <button type="button" onclick="showWarning('Heads up — check your input.')"
+                    class="px-3 py-2 rounded-lg bg-amber-500 text-white text-sm">showWarning</button>
+            <button type="button" onclick="showInfo('Here is some info.')"
+                    class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm">showInfo</button>
+            <button type="button" onclick="showNotification('Custom toast', 'info', 3000)"
+                    class="px-3 py-2 rounded-lg bg-gray-700 text-white text-sm">showNotification (3s)</button>
+        </div>
+
+        @* JS reference — these globals exist because _Layout renders the component:
+           showSuccess(message, durationMs?=5000)
+           showError  (message, durationMs?=7000)
+           showWarning(message, durationMs?=6000)
+           showInfo   (message, durationMs?=5000)
+           showNotification(message, type, durationMs)   // type: 'success'|'error'|'warning'|'info'
+           clearAllNotifications() *@
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 2. DELETE MODAL (shared DeleteModal component)                 -->
+    <!-- ============================================================= -->
+    <section class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-surface-light space-y-3">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">2. Delete modal</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            Invoke the component once per page (it is configurable per item). Each row/button
+            calls <code>openDeleteModal_&lt;ModalId&gt;(itemId, itemName)</code> to open it.
+            The form submit is intercepted client-side so you can do an AJAX delete and show a toast.
+        </p>
+
+        @* Sample rows — each "delete" button opens the SAME shared modal with that row's id/name. *@
+        <ul class="divide-y divide-gray-100 dark:divide-gray-800 border rounded-lg">
+            <li class="flex items-center justify-between px-4 py-3">
+                <span class="text-sm text-gray-700 dark:text-gray-300">Sample item #1 — Alpha</span>
+                <button type="button"
+                        onclick="openDeleteModal_sampleDeleteModal(1, 'Alpha')"
+                        class="px-2 py-1 rounded-md text-sm text-error hover:bg-error-light">Delete</button>
+            </li>
+            <li class="flex items-center justify-between px-4 py-3">
+                <span class="text-sm text-gray-700 dark:text-gray-300">Sample item #2 — Beta</span>
+                <button type="button"
+                        onclick="openDeleteModal_sampleDeleteModal(2, 'Beta')"
+                        class="px-2 py-1 rounded-md text-sm text-error hover:bg-error-light">Delete</button>
+            </li>
+        </ul>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 3. CALENDAR DATE PICKER — single date (shared calendar-picker.js) -->
+    <!-- ============================================================= -->
+    <section class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-surface-light space-y-3">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">3. Calendar date picker — single date</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            The picker lives in <code>wwwroot/js/calendar-picker.js</code> (loaded per page via the
+            <code>Scripts</code> section below). The date input sits inside a <code>.relative</code>
+            wrapper — the script appends the calendar popup into that wrapper — and is opened by
+            calling <code>initCalendarPicker(inputId, options)</code>, then toggled from the input's
+            <code>onclick</code>. The selected date is written back as <code>YYYY-MM-DD</code>.
+            This is the simplest case: one input, one date. Mirrors
+            <code>ckd_tracing/Views/Dashboard/Dashboard.cshtml</code>.
+        </p>
+
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div class="flex-1 max-w-xs">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Pick a date</label>
+                <div class="relative mt-1">
+                    <input type="text" id="sampleSingleDate" placeholder="Select date..." readonly
+                           onclick="openSampleSingleDatePicker()"
+                           class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 cursor-pointer" />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <i class="iconify w-4 h-4 text-gray-400" data-icon="material-symbols-light:calendar-today-outline"></i>
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="sampleConfirmSingleDate()"
+                    class="h-10 px-4 py-2 text-sm font-medium text-white rounded-lg transition flex items-center gap-2"
+                    style="background-color:var(--brand)">
+                <i class="iconify w-4 h-4" data-icon="material-symbols-light:check"></i>
+                Confirm
+            </button>
+        </div>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+            Selected date:
+            <span id="sampleSingleDateValue" class="font-medium text-gray-700 dark:text-gray-300">—</span>
+        </p>
+
+        @* JS reference — API:
+           initCalendarPicker(inputId, { onDateSelect: (dateStr) => {...} }) -> picker instance
+           picker.toggle()  // open/close
+           The input MUST be inside a .relative wrapper (popup is appended there). *@
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- 4. CALENDAR DATE PICKER — date range (shared calendar-picker.js) -->
+    <!-- ============================================================= -->
+    <section class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-surface-light space-y-3">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">4. Calendar date picker — date range</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            One calendar, two clicks: click a start date, then an end date — the days in between are
+            highlighted as you go. This uses the picker's opt-in <code>range: true</code> mode (single
+            date mode in section 3 is unchanged). The selected range is written back to the input as
+            <code>YYYY-MM-DD → YYYY-MM-DD</code>, and the <code>onDateSelect</code> callback receives
+            <code>{ start, end }</code> (end is <code>null</code> until the second click).
+        </p>
+
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div class="flex-1 max-w-md">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Date range</label>
+                <div class="relative mt-1">
+                    <input type="text" id="sampleDateRangeInput" placeholder="Click start, then end..." readonly
+                           onclick="openSampleDateRangePicker()"
+                           class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 cursor-pointer" />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <i class="iconify w-4 h-4 text-gray-400" data-icon="material-symbols-light:calendar-today-outline"></i>
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="sampleFilterDates()"
+                    class="h-10 px-4 py-2 text-sm font-medium text-white rounded-lg transition flex items-center gap-2"
+                    style="background-color:var(--brand)">
+                <i class="iconify w-4 h-4" data-icon="material-symbols-light:filter-alt"></i>
+                Filter
+            </button>
+        </div>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+            Selected range:
+            <span id="sampleDateRange" class="font-medium text-gray-700 dark:text-gray-300">—</span>
+        </p>
+    </section>
+</div>
+
+@* ---------------------------------------------------------------------
+   Invoke the shared DeleteModal component.
+     - ModalId / FormId must be unique on the page; the JS helpers are
+       named after ModalId: openDeleteModal_<ModalId>(...) / closeDeleteModal('<ModalId>').
+     - ItemNameElementId is the id of the <strong> inside Message whose text
+       the component updates with the item name when the modal opens.
+       The Message HTML must contain an element with that id (see below).
+     - DeleteAction is the base URL; the component appends ?id=<itemId>.
+   --------------------------------------------------------------------- *@
+@await Component.InvokeAsync("DeleteModal", new DeleteModalViewModel
+{
+    ModalId          = "sampleDeleteModal",
+    FormId           = "sampleDeleteForm",
+    Title            = "Delete Item",
+    Message          = "Delete <strong id='sampleDeleteDisplay'></strong>? This action cannot be undone.",
+    CancelButtonText = "Cancel",
+    DeleteButtonText = "Delete",
+    DeleteAction     = Url.Action("Delete", "Sample")!,   // -> /Sample/Delete?id=<itemId>
+    ItemNameElementId = "sampleDeleteDisplay"
+})
+
+@section Scripts {
+<script src="~/js/calendar-picker.js"></script>
+<script>
+/* -----------------------------------------------------------------------
+ * Calendar picker helpers for sections 3 (single date) & 4 (date range).
+ *
+ * initCalendarPicker() comes from wwwroot/js/calendar-picker.js (loaded
+ * above). Section 4 uses the picker's opt-in `range: true` mode, where two
+ * clicks inside ONE calendar select a start + end and the in-between days
+ * are highlighted. onDateSelect receives { start, end } (end is null until
+ * the second click).
+ * ----------------------------------------------------------------------- */
+let sampleSingleDatePicker = null;
+let sampleDateRangePicker = null;
+
+function initSampleCalendarPickers() {
+    if (typeof initCalendarPicker === "undefined") return;
+
+    // --- Section 3: single date -----------------------------------------
+    // Starts empty; the user picks one date. onDateSelect updates the readout.
+    if (!sampleSingleDatePicker) {
+        sampleSingleDatePicker = initCalendarPicker("sampleSingleDate", {
+            onDateSelect: (date) => updateSampleSingleDate(date)
+        });
+    }
+
+    // --- Section 4: date range (one calendar, two clicks) ---------------
+    // range: true keeps the calendar open after the first click so the user
+    // can pick the end date. The input is updated to "start → end" by the
+    // component; we mirror it into the readout via onDateSelect.
+    if (!sampleDateRangePicker) {
+        sampleDateRangePicker = initCalendarPicker("sampleDateRangeInput", {
+            range: true,
+            onDateSelect: (range) => updateSampleDateRange(range)
+        });
+    }
+
+    updateSampleSingleDate();
+    updateSampleDateRange();
+}
+
+// --- Section 3: single date ---------------------------------------------
+function openSampleSingleDatePicker() {
+    if (sampleSingleDatePicker) sampleSingleDatePicker.toggle();
+}
+
+function updateSampleSingleDate(date) {
+    const value = date || document.getElementById("sampleSingleDate")?.value || "";
+    const el = document.getElementById("sampleSingleDateValue");
+    if (el) el.textContent = value || "—";
+}
+
+function sampleConfirmSingleDate() {
+    const value = document.getElementById("sampleSingleDate")?.value;
+    if (!value) {
+        showWarning("Please pick a date first.");
+        return;
+    }
+    showSuccess(`Confirmed: ${value}.`);
+}
+
+// --- Section 4: date range ----------------------------------------------
+function openSampleDateRangePicker() {
+    if (sampleDateRangePicker) sampleDateRangePicker.toggle();
+}
+
+function updateSampleDateRange(range) {
+    const r = range || (sampleDateRangePicker && sampleDateRangePicker.getRange()) || { start: null, end: null };
+    const el = document.getElementById("sampleDateRange");
+    if (!el) return;
+    if (r.start && r.end) el.textContent = `${r.start} → ${r.end}`;
+    else if (r.start) el.textContent = `${r.start} → …`;
+    else el.textContent = "—";
+}
+
+function sampleFilterDates() {
+    const range = sampleDateRangePicker ? sampleDateRangePicker.getRange() : { start: null, end: null };
+    if (!range.start || !range.end) {
+        showWarning("Please pick both a start and an end date in the calendar.");
+        return;
+    }
+    showSuccess(`Filtering ${range.start} → ${range.end}.`);
+}
+</script>
+
+<script>
+/* -----------------------------------------------------------------------
+ * Delete handler for the shared DeleteModal.
+ *
+ * The component's <form> is a normal POST, but our controller Delete action
+ * is usually [HttpDelete] + [ValidateAntiForgeryToken]. So we intercept the
+ * submit, issue a fetch DELETE with the antiforgery header, then close the
+ * modal and surface the result as a toast via the shared Notification globals.
+ * ----------------------------------------------------------------------- */
+(function () {
+    "use strict";
+
+    const TOKEN_SELECTOR = 'input[name="__RequestVerificationToken"]';
+    let token = "";
+
+    // The id of the item currently awaiting confirmation. The component bakes
+    // the id into the form action (?id=...), but capturing it here is simpler.
+    let deletingId = null;
+
+    // Wrap openDeleteModal_sampleDeleteModal so we can record the id at open time.
+    const _open = window.openDeleteModal_sampleDeleteModal;
+    window.openDeleteModal_sampleDeleteModal = function (id, name) {
+        deletingId = id;
+        _open && _open(id, name);
+    };
+
+    function init() {
+        const t = document.querySelector(TOKEN_SELECTOR);
+        token = t ? t.value : "";
+
+        initSampleCalendarPickers();
+
+        const form = document.getElementById("sampleDeleteForm");
+        if (!form) return;
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();                 // keep it AJAX
+            if (deletingId == null) return;
+
+            try {
+                // Send the antiforgery token via header (matches [ValidateAntiForgeryToken]).
+                const res = await fetch(`/Sample/Delete/${deletingId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Accept": "application/json",
+                        "RequestVerificationToken": token,
+                    },
+                });
+
+                if (!res.ok) {
+                    let msg = `Request failed (${res.status})`;
+                    try { const d = await res.json(); if (d && d.message) msg = d.message; } catch (_) {}
+                    throw new Error(msg);
+                }
+
+                closeDeleteModal('sampleDeleteModal');
+                showSuccess("Item deleted.");
+                deletingId = null;
+
+                // In a real page you'd reload or re-render the table here, e.g.:
+                // window.location.reload();
+            } catch (err) {
+                closeDeleteModal('sampleDeleteModal');
+                showError(err.message || "Failed to delete item.");
+            }
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+})();
+</script>
+}

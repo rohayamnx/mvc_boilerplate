@@ -1,0 +1,368 @@
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
+  <div class="px-3 py-3 lg:px-5 lg:pl-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center justify-start gap-3">
+        <!-- Mobile Menu Toggle Button -->
+        <button 
+          type="button" 
+          @@click="navbarToggle = !navbarToggle"
+          class="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
+        >
+          <span class="sr-only">Open main menu</span>
+          <i class="iconify w-6 h-6" data-icon="line-md:menu"></i>
+        </button>
+
+        <!-- Logo -->
+        <a href="/" class="flex items-center">
+          <img class="h-8 dark:hidden" src="/img/logo/logo-dark.png" alt="Logo" />
+          <img class="h-8 hidden dark:block" src="/img/logo/logo-dark.png" alt="Logo" />
+        </a>
+        
+        <!-- Desktop Navigation Menu -->
+        <div class="hidden lg:flex lg:items-center lg:space-x-1 lg:ml-8"
+           x-data="{ 
+             selected: $persist(''),
+             init() {
+               const childPages = {
+                 'Settings': ['User', 'Role Management']
+               };
+               
+               let matchedParent = '';
+               for (const [parent, children] of Object.entries(childPages)) {
+                 if (children.includes(page)) {
+                   matchedParent = parent;
+                   break;
+                 }
+               }
+               
+               this.selected = matchedParent;
+             }
+           }">
+        
+        <!-- Dashboard Menu Item -->
+        <a
+          asp-controller="Dashboard"
+          asp-action="Index"
+          class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg"
+          :class="page === 'Dashboard' ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'"
+        >
+          <i class="iconify w-5 h-5" data-icon="line-md:grid-3-twotone"></i>
+          <span>Dashboard</span>
+        </a>
+
+        <!-- Sample Dropdown Menu -->
+        <div class="relative" x-data="{ open: false }" @@click.away="open = false">
+          <button
+            type="button"
+            @@click="open = !open"
+            class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <span>Settings</span>
+            <i class="iconify w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''" data-icon="line-md:chevron-down"></i>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="transform opacity-0 scale-95"
+            x-transition:enter-end="transform opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="transform opacity-100 scale-100"
+            x-transition:leave-end="transform opacity-0 scale-95"
+            class="absolute left-0 z-50 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-md border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+            style="display: none;"
+          >
+            <div class="py-1">
+              <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <span>Item 1</span>
+              </a>
+              <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <span>Item 2</span>
+              </a>
+              <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <span>Item 3</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Dropdown -->
+      
+          <div class="relative" x-data="{ settingsOpen: false }" @@click.away="settingsOpen = false">
+            <button
+              type="button"
+              @@click="settingsOpen = !settingsOpen"
+              class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg"
+              :class="['User', 'Role Management'].includes(page) ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'"
+            >
+              <i class="iconify w-5 h-5" data-icon="solar:settings-linear"></i>
+              <span>Settings</span>
+              <i class="iconify w-4 h-4 transition-transform" :class="settingsOpen ? 'rotate-180' : ''" data-icon="line-md:chevron-down"></i>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div
+              x-show="settingsOpen"
+              x-transition:enter="transition ease-out duration-100"
+              x-transition:enter-start="transform opacity-0 scale-95"
+              x-transition:enter-end="transform opacity-100 scale-100"
+              x-transition:leave="transition ease-in duration-75"
+              x-transition:leave-start="transform opacity-100 scale-100"
+              x-transition:leave-end="transform opacity-0 scale-95"
+              class="absolute left-0 z-50 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-md border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+              style="display: none;"
+            >
+              <div class="py-1">
+
+                @if (User.HasClaim("Permission", "UserManagement.View"))
+                {
+                  <a
+                    asp-controller="UserAccount"
+                    asp-action="Index"
+                    class="flex items-center gap-3 px-4 py-2 text-sm"
+                    :class="page === 'User' ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
+                  >
+                    <i class="iconify w-5 h-5" data-icon="line-md:account"></i>
+                    <span>User</span>
+                  </a>
+                }
+
+                @if (User.HasClaim("Permission", "RoleManagement.View"))
+                {
+                  <a
+                    asp-controller="RoleManagement"
+                    asp-action="Index"
+                    class="flex items-center gap-3 px-4 py-2 text-sm"
+                    :class="page === 'Role Management' ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
+                  >
+                    <i class="iconify w-5 h-5" data-icon="solar:shield-user-outline"></i>
+                    <span>Role Management</span>
+                  </a>
+                }
+              </div>
+            </div>
+          </div>
+     
+        </div>
+      </div>
+
+      <!-- Right Side Utilities -->
+      <div class="flex items-center gap-2">
+        <!-- Dark Mode Toggle -->
+        <button
+          type="button"
+          @@click="darkMode = !darkMode"
+          class="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
+        >
+          <i class="iconify w-5 h-5" data-icon="line-md:moon-filled-to-sunny-filled-loop-transition" x-show="darkMode"></i>
+          <i class="iconify w-5 h-5" data-icon="line-md:sunny-filled-loop-to-moon-filled-loop-transition" x-show="!darkMode" style="display: none;"></i>
+        </button>
+
+        <!-- Notifications -->
+        <button
+          type="button"
+          class="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600 relative"
+        >
+          <i class="iconify w-5 h-5" data-icon="line-md:bell-twotone"></i>
+          <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+
+        <!-- User Profile Dropdown -->
+        <div class="relative" x-data="{ profileOpen: false }" @@click.away="profileOpen = false">
+          <button
+            type="button"
+            @@click="profileOpen = !profileOpen"
+            class="flex items-center gap-2 px-2 py-1 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <img class="w-8 h-8 rounded-full" src="https://ui-avatars.com/api/?name=@(User.Identity?.Name ?? "")&background=3b82f6&color=fff" alt="User" />
+            <span class="hidden lg:block text-gray-700 dark:text-gray-300">@(User.Identity?.Name ?? "")</span>
+          </button>
+
+          <!-- Profile Dropdown Menu -->
+          <div
+            x-show="profileOpen"
+            x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="transform opacity-0 scale-95"
+            x-transition:enter-end="transform opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="transform opacity-100 scale-100"
+            x-transition:leave-end="transform opacity-0 scale-95"
+            class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg bg-white shadow-md border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+            style="display: none;"
+          >
+            <div class="py-1">
+              <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <i class="iconify w-5 h-5" data-icon="line-md:account"></i>
+                <span>Profile</span>
+              </a>
+              <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <i class="iconify w-5 h-5" data-icon="solar:settings-linear"></i>
+                <span>Settings</span>
+              </a>
+              <hr class="my-1 border-gray-200 dark:border-gray-700" />
+              <form asp-controller="Account" asp-action="Logout" method="post" class="w-full">
+                <button type="submit" class="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-700 w-full text-left">
+                  <i class="iconify w-5 h-5" data-icon="line-md:logout"></i>
+                  <span>Sign Out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Menu -->
+    <div 
+      x-show="navbarToggle" 
+      x-transition:enter="transition ease-out duration-100"
+      x-transition:enter-start="transform opacity-0 scale-95"
+      x-transition:enter-end="transform opacity-100 scale-100"
+      x-transition:leave="transition ease-in duration-75"
+      x-transition:leave-start="transform opacity-100 scale-100"
+      x-transition:leave-end="transform opacity-0 scale-95"
+      class="lg:hidden mt-3 border-t border-gray-200 dark:border-gray-700 pt-3"
+      style="display: none;"
+      x-data="{ 
+        selected: $persist(''),
+        init() {
+          const childPages = {
+            'Settings': ['User', 'Role Management']
+          };
+          
+          let matchedParent = '';
+          for (const [parent, children] of Object.entries(childPages)) {
+            if (children.includes(page)) {
+              matchedParent = parent;
+              break;
+            }
+          }
+          
+          this.selected = matchedParent;
+        }
+      }"
+    >
+      <ul class="space-y-1">
+        <!-- Dashboard -->
+        <li>
+          <a
+            asp-controller="Dashboard"
+            asp-action="Index"
+            class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg"
+            :class="page === 'Dashboard' ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'"
+          >
+            <i class="iconify w-5 h-5" data-icon="line-md:grid-3-twotone"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <!-- Sample Dropdown -->
+        <li>
+          <button
+            type="button"
+            @@click="selected = (selected === 'Dropdown' ? '' : 'Dropdown')"
+            class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <div class="flex items-center gap-3">
+              <span>Dropdown</span>
+            </div>
+            <i class="iconify w-4 h-4 transition-transform" :class="selected === 'Dropdown' ? 'rotate-180' : ''" data-icon="line-md:chevron-down"></i>
+          </button>
+
+          <!-- Dropdown Submenu -->
+          <ul
+            x-show="selected === 'Dropdown'"
+            x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="transform opacity-0 -translate-y-2"
+            x-transition:enter-end="transform opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="transform opacity-100 translate-y-0"
+            x-transition:leave-end="transform opacity-0 -translate-y-2"
+            class="mt-2 ml-6 space-y-1"
+            style="display: none;"
+          >
+            <li>
+              <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <span>Item 1</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <span>Item 2</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                <span>Item 3</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <!-- Settings Section -->
+        @if (User.HasClaim("Permission", "Settings.View"))
+        {
+          <li>
+            <button
+              type="button"
+              @@click="selected = (selected === 'Settings' ? '' : 'Settings')"
+              class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              <div class="flex items-center gap-3">
+                <i class="iconify w-5 h-5" data-icon="solar:settings-linear"></i>
+                <span>Settings</span>
+              </div>
+              <i class="iconify w-4 h-4 transition-transform" :class="selected === 'Settings' ? 'rotate-180' : ''" data-icon="line-md:chevron-down"></i>
+            </button>
+
+            <!-- Settings Submenu -->
+            <ul
+              x-show="selected === 'Settings'"
+              x-transition:enter="transition ease-out duration-100"
+              x-transition:enter-start="transform opacity-0 -translate-y-2"
+              x-transition:enter-end="transform opacity-100 translate-y-0"
+              x-transition:leave="transition ease-in duration-75"
+              x-transition:leave-start="transform opacity-100 translate-y-0"
+              x-transition:leave-end="transform opacity-0 -translate-y-2"
+              class="mt-2 ml-6 space-y-1"
+              style="display: none;"
+            >
+
+              @if (User.HasClaim("Permission", "UserManagement.View"))
+              {
+                <li>
+                  <a
+                    asp-controller="UserAccount"
+                    asp-action="Index"
+                    class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg"
+                    :class="page === 'User' ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
+                  >
+                    <i class="iconify w-4 h-4" data-icon="line-md:account"></i>
+                    <span>User</span>
+                  </a>
+                </li>
+              }
+
+              @if (User.HasClaim("Permission", "RoleManagement.View"))
+              {
+                <li>
+                  <a
+                    asp-controller="RoleManagement"
+                    asp-action="Index"
+                    class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg"
+                    :class="page === 'Role Management' ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
+                  >
+                    <i class="iconify w-4 h-4" data-icon="solar:shield-user-outline"></i>
+                    <span>Role Management</span>
+                  </a>
+                </li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,730 @@
+@model mvc_boilerplate.Models.UserAccount
+@using Microsoft.EntityFrameworkCore
+@using mvc_boilerplate.Models.Dto
+
+@{
+    ViewData["Title"] = "User Account Details";
+    ViewData["Module"] = "UserAccount";
+
+    var canEdit = User.HasClaim("Permission", "UserAccount.Edit");
+
+    var displayName = Model?.UserName ?? Model?.UserAccountId;
+    bool isActive = string.Equals(Model?.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase);
+    var staffInfo = ViewBag.StaffInfo as StaffDto;
+
+    // Build permission groups from the eager-loaded Role → RolePermissions → Permission → Module chain
+    var rolePermissions = Model?.Role?.RolePermissions?
+        .Where(rp => rp.Permission != null)
+        .ToList() ?? new List<mvc_boilerplate.Models.RolePermission>();
+
+    var permissionsByModule = rolePermissions
+        .Select(rp => new
+        {
+            Module = rp.Permission!.Module?.ModuleName ?? "General",
+            Permission = rp.Permission!.PermissionName
+        })
+        .GroupBy(p => p.Module)
+        .OrderBy(g => g.Key)
+        .ToList();
+
+    var totalPermissions = rolePermissions.Count;
+}
+
+@Html.AntiForgeryToken()
+
+<div class="p-4 md:p-4 space-y-4">
+    @if (TempData["StatusMessage"] is string statusMsg && !string.IsNullOrWhiteSpace(statusMsg))
+    {
+        <div class="mb-4 rounded-lg border border-success-light bg-success-light text-success-dark dark:border-success-dark dark:bg-success-dark/20 dark:text-success-light px-4 py-3">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-sm font-medium">@statusMsg</span>
+            </div>
+        </div>
+    }
+
+    @if (ViewData["ErrorMessage"] != null)
+    {
+        <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 dark:bg-red-900/20 dark:border-red-500">
+            <div class="flex items-center">
+                <i class="iconify mr-2 text-red-400" data-icon="material-symbols-light:error-outline"></i>
+                <p class="text-red-800 dark:text-red-200">@ViewData["ErrorMessage"]</p>
+            </div>
+        </div>
+    }
+
+    <!-- Page Header -->
+    <div class="mb-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                    @ViewData["Title"]
+                </h2>
+                <p class="text-sm text-gray-500">
+                    View account information, role assignment, and permissions for this user
+                </p>
+            </div>
+            <div class="mt-6 sm:mt-0 flex flex-col sm:flex-row gap-3 sm:items-center">
+                <div class="flex items-center gap-3">
+                    @if (isActive)
+                    {
+                        <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-success-light dark:bg-green-900/30 text-success dark:text-success-light text-sm font-semibold border border-success dark:border-success-dark">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            Active Status
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Inactive
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model?.Email))
+                    {
+                        <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-brand-light dark:bg-blue-900/30 text-brand dark:text-brand-light text-sm font-semibold border border-brand dark:border-brand">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            Email Set
+                        </span>
+                    }
+                </div>
+                <div class="flex justify-end">
+                    <a asp-action="Index"
+                       class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold"
+                       title="Back to List">
+                        <i class="iconify text-lg" data-icon="material-symbols-light:arrow-back"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mb-8">
+        <nav class="flex gap-6 border-b border-gray-200 dark:border-gray-700 sticky top-[72px] bg-white dark:bg-gray-900 z-50">
+            <button onclick="switchTab('profile')" id="profile-tab"
+                    class="relative py-4 px-6 text-sm font-semibold text-brand dark:text-brand-light active-tab border-b-2 border-brand dark:border-brand-light">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    Profile Overview
+                </div>
+            </button>
+            <button onclick="switchTab('roles')" id="roles-tab"
+                    class="py-4 px-6 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-brand dark:hover:text-brand-light transition-colors">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Roles & Permissions
+                </div>
+            </button>
+        </nav>
+    </div>
+
+    <div class="w-full">
+        <!-- Profile Content -->
+        <div id="profile-content" class="tab-content w-full">
+            <div class="rounded-xl border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light">
+                <!-- Header strip -->
+                <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 p-8 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex flex-col items-center gap-2 text-center">
+                        <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">@displayName</h2>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">@Model?.Email</p>
+                    </div>
+                </div>
+
+                <div class="p-8">
+                    <!-- Account Details -->
+                    <div class="border-b border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center mb-6">
+                            <div class="p-2.5 bg-blue-100 dark:bg-blue-900/30">
+                                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="ml-3 text-lg font-semibold text-gray-900 dark:text-white">Account Details</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">User ID</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@Model?.UserAccountId</p>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Username</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@Model?.UserName</p>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Email Address</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white break-all">@(Model?.Email ?? "-")</p>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Login Provider</span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @if (!string.IsNullOrEmpty(Model?.LoginProvider))
+                                    {
+                                        <span class="inline-flex items-center justify-center gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-sm text-brand dark:bg-surface-subtle dark:text-brand">
+                                            @Model.LoginProvider
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center justify-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-sm text-gray-700 dark:text-gray-400 dark:bg-surface-subtle">
+                                            Local
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+                                @if (isActive)
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-lg bg-success-light dark:bg-green-900/30 py-1 px-2 text-sm font-medium text-success dark:text-success-light w-fit">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Active
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-lg bg-error-light dark:bg-error-900/30 py-1 px-2 text-sm font-medium text-error dark:text-error-light w-fit">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Inactive
+                                    </span>
+                                }
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Login</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@(Model?.LastLoginAt?.ToString("MMM dd, yyyy HH:mm") ?? "-")</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Staff Information from StaffHub API -->
+                    @if (staffInfo != null)
+                    {
+                        <div class="p-6">
+                            <div class="flex items-center mb-6">
+                                <div class="p-2.5 bg-purple-100 dark:bg-purple-900/30">
+                                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="ml-3 text-lg font-semibold text-gray-900 dark:text-white">Staff Information</h3>
+                                <span class="ml-2 px-2 py-1 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-medium">From StaffHub</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Staff ID</span>
+                                    <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.Id</p>
+                                </div>
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</span>
+                                    <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.Name</p>
+                                </div>
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Department</span>
+                                    <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.DepartmentName</p>
+                                </div>
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Designation</span>
+                                    <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.DesignationName</p>
+                                </div>
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Category</span>
+                                    <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.Category</p>
+                                </div>
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Date Joined</span>
+                                    <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.DateJoined.ToString("MMM dd, yyyy")</p>
+                                </div>
+                                @if (!string.IsNullOrEmpty(staffInfo.ContactNo))
+                                {
+                                    <div class="flex flex-col gap-2.5">
+                                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Phone Number</span>
+                                        <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.ContactNo</p>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(staffInfo.SectionName))
+                                {
+                                    <div class="flex flex-col gap-2.5">
+                                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Section</span>
+                                        <p class="text-base font-medium text-gray-900 dark:text-white">@staffInfo.SectionName</p>
+                                    </div>
+                                }
+                                <div class="flex flex-col gap-2.5">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+                                    @if (staffInfo.IsActive)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-lg bg-success-light dark:bg-green-900/30 py-1 px-2 text-sm font-medium text-success dark:text-success-light w-fit">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-lg bg-error-light dark:bg-error-900/30 py-1 px-2 text-sm font-medium text-error dark:text-error-light w-fit">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Inactive
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-6">
+                            <div class="flex items-center mb-6">
+                                <div class="p-2.5 bg-yellow-100 dark:bg-yellow-900/30">
+                                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="ml-3 text-lg font-semibold text-gray-900 dark:text-white">Staff Information</h3>
+                            </div>
+                            <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700">
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                            Staff Information Unavailable
+                                        </p>
+                                        <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                            Staff information could not be retrieved at this time. Please try refreshing the page or contact your system administrator.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Audit Information -->
+                    <div class="p-6">
+                        <div class="flex items-center mb-6">
+                            <div class="p-2.5 bg-purple-100 dark:bg-purple-900/30">
+                                <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="ml-3 text-lg font-semibold text-gray-900 dark:text-white">Audit Information</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Created By</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@Model?.CreatedBy</p>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@Model?.CreatedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Updated By</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@(Model?.UpdatedBy ?? "-")</p>
+                            </div>
+                            <div class="flex flex-col gap-2.5">
+                                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Updated At</span>
+                                <p class="text-base font-medium text-gray-900 dark:text-white">@(Model?.UpdatedAt?.ToString("MMM dd, yyyy HH:mm") ?? "-")</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roles Content -->
+        <div id="roles-content" class="hidden tab-content w-full">
+            <div class="space-y-6">
+                <!-- Role Information Card -->
+                <div class="rounded-xl border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light">
+                    <div class="border-b border-gray-200 py-4 px-7 dark:border-gray-800 flex items-center justify-between">
+                        <h3 class="font-semibold text-gray-700 dark:text-gray-400">User Role</h3>
+                    </div>
+                    <div class="p-7">
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Current Role</span>
+                                    @if (!string.IsNullOrEmpty(Model?.Role?.RoleName))
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 py-1.5 px-3 text-sm font-medium text-blue-700 dark:text-blue-300">
+                                            <i class="iconify w-4 h-4" data-icon="material-symbols-light:shield-user-outline"></i>
+                                            @Model.Role.RoleName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 py-1.5 px-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            <i class="iconify w-4 h-4" data-icon="material-symbols-light:block"></i>
+                                            No Role Assigned
+                                        </span>
+                                    }
+                                </div>
+                                @if (canEdit)
+                                {
+                                     <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                                        <button type="button" onclick="openAssignRoleModal('@Model?.UserAccountId')" 
+                                        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-800 text-white text-sm font-semibold transition-colors w-full justify-center">
+                                            <i class="iconify" data-icon="material-symbols-light:shield-user-outline"></i>
+                                            Assign Role
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Permissions Card -->
+                @if (totalPermissions > 0)
+                {
+                    <div class="rounded-xl border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light">
+                        <div class="border-b border-gray-200 py-4 px-7 dark:border-gray-800">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-semibold text-gray-700 dark:text-gray-400">Role Permissions</h3>
+                                <span class="inline-flex items-center gap-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 py-1 px-2.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                    @totalPermissions @(totalPermissions == 1 ? "Permission" : "Permissions")
+                                </span>
+                            </div>
+                        </div>
+                        <div class="p-7">
+                            <div class="space-y-6">
+                                @foreach (var moduleGroup in permissionsByModule)
+                                {
+                                    var modulePermissions = moduleGroup.Select(p => p.Permission).OrderBy(p => p).ToList();
+                                    <div class="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                        <!-- Module Header -->
+                                        <div class="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                                </svg>
+                                                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">@moduleGroup.Key</h4>
+                                                <span class="ml-auto text-xs text-gray-500 dark:text-gray-400">@modulePermissions.Count @(modulePermissions.Count == 1 ? "permission" : "permissions")</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Permissions List -->
+                                        <div class="p-4">
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                @foreach (var permissionName in modulePermissions)
+                                                {
+                                                    var iconClass = "text-gray-600 dark:text-gray-400";
+                                                    var bgClass = "bg-gray-100 dark:bg-gray-700";
+                                                    var icon = "material-symbols-light:check-circle-outline";
+
+                                                    if (permissionName.Contains("View"))
+                                                    {
+                                                        iconClass = "text-blue-600 dark:text-blue-400";
+                                                        bgClass = "bg-blue-50 dark:bg-blue-900/20";
+                                                        icon = "material-symbols-light:visibility-outline";
+                                                    }
+                                                    else if (permissionName.Contains("Create"))
+                                                    {
+                                                        iconClass = "text-green-600 dark:text-green-400";
+                                                        bgClass = "bg-green-50 dark:bg-green-900/20";
+                                                        icon = "material-symbols-light:add-circle-outline";
+                                                    }
+                                                    else if (permissionName.Contains("Edit"))
+                                                    {
+                                                        iconClass = "text-yellow-600 dark:text-yellow-400";
+                                                        bgClass = "bg-yellow-50 dark:bg-yellow-900/20";
+                                                        icon = "material-symbols-light:edit-outline";
+                                                    }
+                                                    else if (permissionName.Contains("Delete"))
+                                                    {
+                                                        iconClass = "text-red-600 dark:text-red-400";
+                                                        bgClass = "bg-red-50 dark:bg-red-900/20";
+                                                        icon = "material-symbols-light:delete-outline";
+                                                    }
+
+                                                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg @bgClass">
+                                                        <i class="iconify w-4 h-4 @iconClass flex-shrink-0" data-icon="@icon"></i>
+                                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">@permissionName</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(Model?.Role?.RoleName))
+                {
+                    <div class="rounded-xl border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light">
+                        <div class="p-7">
+                            <div class="text-center py-8">
+                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                                    <i class="iconify w-8 h-8 text-gray-400" data-icon="material-symbols-light:lock-outline"></i>
+                                </div>
+                                <h4 class="text-base font-semibold text-gray-900 dark:text-white mb-2">No Permissions Assigned</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                                    This role currently has no permissions. Contact an administrator to assign permissions to this role.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Role Modal -->
+<div id="assignRoleModal"
+     class="fixed inset-0 bg-gray-500 bg-opacity-50 backdrop-blur-sm hidden z-[999999] flex items-center justify-center p-4"
+     onclick="if (event.target === this) closeAssignRoleModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Assign Role</h3>
+                </div>
+                <button onclick="closeAssignRoleModal()" type="button" 
+                        class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div id="modalLoading" class="hidden text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">Loading roles...</p>
+            </div>
+
+            <!-- Modal Body -->
+            <form id="assignRoleForm" onsubmit="submitRoleAssignment(event)" class="hidden">
+                <input type="hidden" id="modalUserId" name="userId" />
+                
+                <div class="mt-2 px-1 py-3">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">User</label>
+                        <p id="modalUserName" class="text-base font-medium text-gray-900 dark:text-white"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Role</label>
+                        <p id="modalCurrentRole" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="modalRoleSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Select New Role
+                        </label>
+                        <select id="modalRoleSelect" name="selectedRoleId" required
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="">-- Select a Role --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div id="modalError" class="hidden px-1 py-3">
+                    <div class="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700">
+                        <p class="text-sm text-red-800 dark:text-red-200"></p>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex items-center px-1 py-3 gap-3">
+                    <button type="button" onclick="closeAssignRoleModal()" 
+                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="modalSubmitBtn"
+                            class="flex-1 px-4 py-2 btn-brand">
+                        <span id="submitBtnText">Confirm</span>
+                        <span id="submitBtnLoading" class="hidden flex items-center justify-center">
+                            <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                            Assigning...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function switchTab(tabId) {
+            // Remove active class from all tabs
+            document.querySelectorAll('nav button').forEach(tab => {
+                tab.classList.remove('active-tab');
+                tab.classList.remove('text-brand', 'dark:text-brand-light', 'border-b-2', 'border-brand', 'dark:border-brand-light');
+                tab.classList.add('text-gray-600', 'dark:text-gray-400');
+            });
+
+            // Add active class to selected tab
+            const selectedTab = document.getElementById(tabId + '-tab');
+            selectedTab.classList.add('active-tab', 'text-brand', 'dark:text-brand-light', 'border-b-2', 'border-brand', 'dark:border-brand-light');
+            selectedTab.classList.remove('text-gray-600', 'dark:text-gray-400');
+
+            // Hide all sections
+            document.querySelectorAll('.tab-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Show selected section
+            document.getElementById(tabId + '-content').classList.remove('hidden');
+        }
+
+        // Initialize first tab
+        document.addEventListener('DOMContentLoaded', () => {
+            switchTab('profile');
+        });
+
+        // --- Assign Role Modal functions ---
+        function openAssignRoleModal(userId) {
+            const modal = document.getElementById('assignRoleModal');
+            const loading = document.getElementById('modalLoading');
+            const form = document.getElementById('assignRoleForm');
+            const errorDiv = document.getElementById('modalError');
+
+            modal.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            form.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+
+            fetch(`/UserAccount/GetRolesForModal?id=${encodeURIComponent(userId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    loading.classList.add('hidden');
+
+                    if (data.success) {
+                        document.getElementById('modalUserId').value = data.userId;
+                        document.getElementById('modalUserName').textContent = data.userName;
+                        document.getElementById('modalCurrentRole').textContent = data.currentRole || 'No role assigned';
+
+                        const select = document.getElementById('modalRoleSelect');
+                        select.innerHTML = '<option value="">-- Select a Role --</option>';
+                        data.roles.forEach(role => {
+                            const option = document.createElement('option');
+                            option.value = role.id;
+                            option.textContent = role.name;
+                            if (role.isSelected) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+
+                        form.classList.remove('hidden');
+                    } else {
+                        showModalError(data.message || 'Failed to load roles');
+                    }
+                })
+                .catch(error => {
+                    loading.classList.add('hidden');
+                    showModalError('An error occurred while loading roles');
+                    console.error('Error:', error);
+                });
+        }
+
+        function closeAssignRoleModal() {
+            const modal = document.getElementById('assignRoleModal');
+            modal.classList.add('hidden');
+            document.getElementById('assignRoleForm').reset();
+            document.getElementById('modalError').classList.add('hidden');
+        }
+
+        function showModalError(message) {
+            const errorDiv = document.getElementById('modalError');
+            errorDiv.querySelector('p').textContent = message;
+            errorDiv.classList.remove('hidden');
+            document.getElementById('assignRoleForm').classList.remove('hidden');
+        }
+
+        function submitRoleAssignment(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('modalSubmitBtn');
+            const submitBtnText = document.getElementById('submitBtnText');
+            const submitBtnLoading = document.getElementById('submitBtnLoading');
+            const errorDiv = document.getElementById('modalError');
+
+            submitBtn.disabled = true;
+            submitBtnText.classList.add('hidden');
+            submitBtnLoading.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+
+            const formData = new FormData(event.target);
+            const userId = formData.get('userId');
+            const selectedRoleId = formData.get('selectedRoleId');
+
+            const postData = new FormData();
+            postData.append('userId', userId);
+            postData.append('selectedRoleId', selectedRoleId);
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            if (token) {
+                postData.append('__RequestVerificationToken', token);
+            }
+
+            fetch('/UserAccount/UpdateRoleFromModal', {
+                method: 'POST',
+                body: postData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    showModalError(data.message || 'Failed to assign role. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtnText.classList.remove('hidden');
+                    submitBtnLoading.classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                showModalError('An error occurred. Please try again.');
+                submitBtn.disabled = false;
+                submitBtnText.classList.remove('hidden');
+                submitBtnLoading.classList.add('hidden');
+                console.error('Error:', error);
+            });
+        }
+    </script>
+
+    <style>
+        .active-tab {
+            position: relative;
+        }
+        .active-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: currentColor;
+        }
+    </style>
+}

@@ -1,0 +1,253 @@
+@* Add / Edit Role — centered modal (vanilla JS, no Alpine).
+   Inline <script> below. Open via window.roleForm.openCreate() / .openEdit(row). *@
+<div id="roleFormModal" class="fixed inset-0 hidden z-[999999] flex items-center justify-center p-4" style="display:none;">
+    <!-- backdrop -->
+    <div id="roleFormBackdrop" class="fixed inset-0 bg-gray-500 bg-opacity-50 backdrop-blur-sm"></div>
+
+    <!-- dialog -->
+    <div class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+        <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4 dark:border-gray-700">
+            <div>
+                <h2 id="roleFormTitle" class="text-lg font-bold text-gray-800 dark:text-white">Add Role</h2>
+                <p id="roleFormSubtitle" class="mt-1 text-sm text-gray-500 dark:text-gray-400">Create a new role. Assign permissions after creating.</p>
+            </div>
+            <button type="button" data-action="close" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="iconify text-xl" data-icon="tabler:x"></i>
+            </button>
+        </div>
+
+        <div class="px-6 py-5 space-y-4">
+            <!-- Role id chip (edit mode only) -->
+            <div id="roleFormIdChip" class="text-xs text-gray-500 dark:text-gray-400" style="display:none;">
+                Role ID: <span id="roleFormId" class="font-medium text-gray-700 dark:text-gray-200"></span>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Role Name <span class="text-error">*</span>
+                </label>
+                <input type="text" id="roleFormName" maxlength="100"
+                       placeholder="e.g. ClinicPanel"
+                       class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Description</label>
+                <textarea id="roleFormDescription" rows="2" maxlength="200"
+                          class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"></textarea>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Status <span class="text-error">*</span></label>
+                <select id="roleFormIsActive"
+                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-4 dark:border-gray-700">
+            <button type="button" data-action="close"
+                    class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300">Cancel</button>
+            <button type="button" data-action="submit" id="roleFormSubmit"
+                    class="px-4 py-2 rounded-xl btn-brand text-white text-sm font-semibold disabled:opacity-60">Add Role</button>
+        </div>
+    </div>
+</div>
+
+@* Standalone toast for the role form modal (does not reuse the page's Alpine toast). *@
+@* Toast markup removed — notifications now route through the shared Notification
+   component (window.showNotification / showSuccess / showError) via _rolePermApp.notify. *@
+
+<script>
+/* Add / Edit Role modal — standalone vanilla-JS (no Alpine).
+ *
+ * Owns its own form state, surfaces its own toasts, and hits /RolePermission
+ * Create / Update endpoints directly. Fully decoupled from the inlined roles-table script:
+ * after a successful save it dispatches a `roles:changed` CustomEvent on
+ * `document` so any table renderer (current or future) can reload itself.
+ *
+ * Open from anywhere: window.roleForm.openCreate()  /  .openEdit(roleObj)
+ */
+(function () {
+    "use strict";
+
+    const TOKEN_SELECTOR = 'input[name="__RequestVerificationToken"]';
+
+    const state = {
+        editingRole: null,  // null = create mode; otherwise the row being edited
+        saving: false,
+    };
+
+    let token = "";
+    let modal, backdrop, titleEl, subtitleEl, idChip, idEl,
+        nameInput, descInput, activeSelect, submitBtn;
+
+    const byId = (id) => document.getElementById(id);
+
+    function cacheDom() {
+        modal = byId("roleFormModal");
+        backdrop = byId("roleFormBackdrop");
+        titleEl = byId("roleFormTitle");
+        subtitleEl = byId("roleFormSubtitle");
+        idChip = byId("roleFormIdChip");
+        idEl = byId("roleFormId");
+        nameInput = byId("roleFormName");
+        descInput = byId("roleFormDescription");
+        activeSelect = byId("roleFormIsActive");
+        submitBtn = byId("roleFormSubmit");
+    }
+
+    // ── Helpers ──────────────────────────────────────────────
+    async function sendJson(url, method, body) {
+        const res = await fetch(url, {
+            method,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "RequestVerificationToken": token,
+            },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!res.ok) throw await toError(res);
+        return res.status === 204 ? null : res.json();
+    }
+
+    async function toError(res) {
+        let message = `Request failed (${res.status})`;
+        try {
+            const data = await res.json();
+            if (data && data.message) message = data.message;
+            else if (data && data.title) message = data.title;
+        } catch (_) { /* keep default */ }
+        return { message, status: res.status };
+    }
+
+    function notify(message, type = "success") {
+        if (window._rolePermApp) window._rolePermApp.notify(message, type);
+        else if (window.showNotification) window.showNotification(message, type);
+        else window.alert(message);
+    }
+
+    // ── Render ───────────────────────────────────────────────
+    function render() {
+        const editing = !!state.editingRole;
+        if (titleEl) titleEl.textContent = editing ? "Edit Role" : "Add Role";
+        if (subtitleEl) subtitleEl.textContent = editing
+            ? "Rename or update the role."
+            : "Create a new role. Assign permissions after creating.";
+        if (idChip) idChip.style.display = editing ? "" : "none";
+        if (idEl && editing) idEl.textContent = state.editingRole.roleId ?? "";
+        if (submitBtn) {
+            submitBtn.textContent = state.saving
+                ? "Saving…"
+                : (editing ? "Save" : "Add Role");
+            submitBtn.disabled = state.saving;
+        }
+    }
+
+    // ── Open / close ─────────────────────────────────────────
+    function open() {
+        if (!modal) cacheDom();
+        if (!modal) return;
+        const t = document.querySelector(TOKEN_SELECTOR);
+        token = t ? t.value : "";
+        modal.style.display = "flex";
+        document.addEventListener("keydown", onKeydown);
+        render();
+        // Focus the name field once the modal is visible.
+        setTimeout(() => nameInput && nameInput.focus(), 0);
+    }
+
+    function close() {
+        if (modal) modal.style.display = "none";
+        document.removeEventListener("keydown", onKeydown);
+    }
+
+    function onKeydown(e) {
+        if (e.key === "Escape") close();
+    }
+
+    function openCreate() {
+        if (!modal) cacheDom();
+        state.editingRole = null;
+        if (nameInput) nameInput.value = "";
+        if (descInput) descInput.value = "";
+        if (activeSelect) activeSelect.value = "true";
+        open();
+    }
+
+    function openEdit(role) {
+        if (!role) return;
+        if (!modal) cacheDom();
+        state.editingRole = role;
+        if (nameInput) nameInput.value = role.roleName || "";
+        if (descInput) descInput.value = role.description || "";
+        if (activeSelect) activeSelect.value = role.isActive ? "true" : "false";
+        open();
+    }
+
+    // ── Submit ───────────────────────────────────────────────
+    async function submit() {
+        if (!nameInput) return;
+        const trimmed = (nameInput.value || "").trim();
+        if (!trimmed) { notify("Role name is required", "error"); return; }
+        const description = (descInput.value || "").trim();
+        const isActive = activeSelect.value === "true";
+
+        state.saving = true;
+        render();
+        try {
+            if (state.editingRole) {
+                await sendJson(`/RolePermission/Update/${state.editingRole.roleId}`, "PUT", {
+                    roleName: trimmed,
+                    description: description || null,
+                    isActive,
+                });
+                notify("Role updated");
+            } else {
+                await sendJson("/RolePermission/Create", "POST", {
+                    roleName: trimmed,
+                    description: description || null,
+                    isActive,
+                });
+                notify("Role added");
+            }
+            close();
+            // Decoupled notification: any table renderer can listen and reload.
+            document.dispatchEvent(new CustomEvent("roles:changed"));
+        } catch (e) {
+            notify(e.message || "Failed to save role", "error");
+        } finally {
+            state.saving = false;
+            render();
+        }
+    }
+
+    // ── Events ───────────────────────────────────────────────
+    function onModalClick(e) {
+        if (e.target === backdrop) { close(); return; }
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        if (action === "close") close();
+        else if (action === "submit") void submit();
+    }
+
+    function init() {
+        cacheDom();
+        if (!modal) return;
+        modal.addEventListener("click", onModalClick);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+
+    // Public API
+    window.roleForm = { openCreate, openEdit, close };
+})();
+</script>

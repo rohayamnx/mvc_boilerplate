@@ -1,0 +1,67 @@
+:root {
+  /* Base colors */
+  --white: #ffffff;
+  --black: #101828;
+
+  /* Brand colors - Simplified to essential shades */
+  --brand-light: #eff4fb;
+  /* Light backgrounds */
+  --brand: #584CE1;
+  /* Primary brand color (Blue) */
+  --brand-hover: #2938a8;
+  /* Hover states (Darker Blue) */
+  --brand-dark: #3d31c2;
+  /* Darker elements */
+  --brand-500-12pct: rgba(60, 80, 224, 0.12);
+  /* Brand at 12% opacity for dark mode */
+
+  /* Status colors */
+  --success-light: #e4f3ea;
+  --success: #22d783;
+  --success-dark: #1c6244;
+
+  --error-light: #fabfba;
+  --error: #f04438;
+  --error-dark: #b42318;
+
+  --warning-light: #f7e7b5;
+  --warning: #f79009;
+  --warning-dark: #b54708;
+
+  /* Gray scale - Essential shades only */
+  --gray-50: #f9fafb;
+  /* Light backgrounds */
+  --gray-100: #f2f4f7;
+  /* Subtle borders */
+  --gray-200: #e4e7ec;
+  /* Borders */
+  --gray-400: #98a2b3;
+  /* Placeholders */
+  --gray-500: #667085;
+  /* Secondary text */
+  --gray-700: #344054;
+  /* Primary text */
+  --gray-800: #1d2939;
+  /* Dark backgrounds */
+  --gray-900: #101828;
+  /* Darkest backgrounds */
+
+  /* Surface colors - For subtle backgrounds in dark mode */
+  --surface-light: rgba(255, 255, 255, 0.03);
+  /* Very subtle background */
+  --surface-subtle: rgba(255, 255, 255, 0.05);
+  /* Slightly more visible */
+
+  /* Gradients - Simplified to most useful ones */
+  --gradient-brand: linear-gradient(135deg, var(--brand), var(--brand-hover));
+  --gradient-dark: linear-gradient(135deg, var(--gray-800), var(--gray-900));
+  --gradient-light: linear-gradient(135deg, var(--gray-50), var(--gray-100));
+}
+
+/* Dark mode overrides */
+.dark {
+  /* Override gradients for dark mode */
+  --gradient-brand: linear-gradient(135deg, var(--gray-800), var(--gray-900));
+  --gradient-dark: linear-gradient(135deg, var(--gray-900), var(--black));
+  --gradient-light: linear-gradient(135deg, var(--gray-800), var(--gray-700));
+}

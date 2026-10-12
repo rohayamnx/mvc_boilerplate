@@ -1,0 +1,243 @@
+@model mvc_boilerplate.Models.UI.PaginatedList<mvc_boilerplate.Models.UserAccount>
+
+@{
+    ViewData["Title"] = "User Account";
+    ViewData["Module"] = "UserAccount";
+
+    // Claim-based permission gates. Claim value format is
+    // "{ModuleName}.{PermissionName}" (e.g. "UserAccount.Create").
+    var canCreate = User.HasClaim("Permission", "UserAccount.Create");
+    var canEdit = User.HasClaim("Permission", "UserAccount.Edit");
+    var canDelete = User.HasClaim("Permission", "UserAccount.Delete");
+    var canView = User.HasClaim("Permission", "UserAccount.View");  
+}
+
+
+<div class="p-4 md:p-4 space-y-4"> 
+    <!-- Page Title -->
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-700 dark:text-white"> @ViewData["Title"]</h1> 
+            <p class="text-sm text-gray-500 dark:text-gray-400"> Manage users and their roles</p>
+        </div>
+        <div class="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3 sm:items-center">
+            @if (canCreate)
+            {
+                <a asp-controller="UserAccount" asp-action="Create"
+                   class="inline-flex items-center justify-center gap-2 px-4 py-2 btn-brand text-white text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                    <i class="iconify text-lg" data-icon="material-symbols:add"></i>
+                    New
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="border rounded-lg border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light p-4 mb-2">
+        <div class="mb-6">
+            <form asp-action="Index" method="get" class="w-full">
+               <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+
+                    <div class="flex flex-col gap-2 w-full lg:w-auto">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                        <!-- Username Search -->
+                        <div class="relative">
+                            <input type="text" name="username" value="@ViewData["CurrentFilter"]" 
+                                placeholder="Search by username..."
+                                class="h-10 px-3 py-2 focus:border-brand focus:ring-3 focus:ring-brand-500/20 dark:focus:border-brand w-full lg:w-64 rounded-lg border border-gray-300 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none dark:border-gray-700" />
+                        </div>
+                    </div>
+                        
+                    <div class="flex flex-col gap-2 w-full lg:w-auto">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <!-- Status Dropdown -->
+                        <div x-data="{ isOptionSelected: false }" class="relative z-20 bg-transparent min-w-48">
+                            <select name="status"
+                                    class="h-10 px-3 py-2 focus:border-brand focus:ring-3 focus:ring-brand-500/20 dark:focus:border-brand w-full lg:w-64 rounded-lg border border-gray-300 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none dark:border-gray-700"
+                                    :class="isOptionSelected && 'text-gray-800 dark:text-white/90'"
+                                    @@change="isOptionSelected = true">
+                                <option value="" class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                    All Status
+                                </option>
+                                <option value="ACTIVE"
+                                        selected="@(ViewData["StatusFilter"]?.ToString() == "ACTIVE")"
+                                        class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                    Active
+                                </option>
+                                <option value="INACTIVE"
+                                        selected="@(ViewData["StatusFilter"]?.ToString() == "INACTIVE")"
+                                        class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                    Inactive
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                       <div class="sm:col-span-1 lg:col-span-1 flex items-end">
+                        <button type="submit" class="w-full h-10 px-3 py-2 flex items-center justify-center gap-2 text-sm font-medium btn-brand">
+                            <i class="iconify w-4 h-4" data-icon="material-symbols-light:filter-alt"></i>
+                            Filter
+                        </button>
+                    </div>
+
+                    <div class="sm:col-span-1 lg:col-span-1 flex items-end">
+                        <a asp-action="Index" asp-route-pageSize="@(ViewBag.PaginationInfo?.PageSize ?? 10)" class="w-full h-10 px-3 py-2 flex items-center justify-center gap-2 text-sm font-medium bg-gray-200 hover:bg-gray-300 dark:hover:bg-gray-800 text-gray-600 dark:hover:text-gray-200 transition rounded-xl border border-gray-300 dark:border-gray-600 dark:hover:border-gray-500">
+                            <i class="iconify w-4 h-4" data-icon="material-symbols-light:filter-alt-off"></i>
+                            Clear Filter
+                        </a>
+                    </div>
+                    
+                    <!-- Action Buttons Row -->
+                
+                </div>
+            </form>
+            
+            <!-- Page Size Selector -->
+            <div class="flex items-center justify-end gap-3 mt-4">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Show</label>
+                <select id="pageSizeSelector" class="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300" 
+                        onchange="changePageSize(this.value)">
+                    @{
+                        var currentPageSize = ViewBag.PaginationInfo?.PageSize ?? 10;
+                    }
+                    <option value="5" selected="@(currentPageSize == 5)">5</option>
+                    <option value="10" selected="@(currentPageSize == 10)">10</option>
+                    <option value="25" selected="@(currentPageSize == 25)">25</option>
+                    <option value="50" selected="@(currentPageSize == 50)">50</option>
+                </select>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">per page</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-10">
+            <div class="rounded-xl border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light">
+                <div class="max-w-full overflow-x-auto">
+                    <table class="w-full table-auto">
+                        <thead class="border-gray-100 border-y bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                            <tr class="border-b border-gray-100 dark:border-gray-800">
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    No.
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    User ID
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Username
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Role
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Login Provider
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Status
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Last Login
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            @{
+                                var currentPaginationInfo = ViewBag.PaginationInfo as mvc_boilerplate.Models.UI.PaginationInfo;
+                                int rowNumber = currentPaginationInfo != null ? 
+                                    ((currentPaginationInfo.CurrentPage - 1) * currentPaginationInfo.PageSize) : 0;
+                            }
+                            @foreach (var item in Model)
+                            {
+                                rowNumber++;
+                                <tr>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="text-gray-700 text-sm dark:text-gray-400">
+                                            @rowNumber
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <h5 class="text-sm text-gray-700 dark:text-gray-400">
+                                            @Html.DisplayFor(modelItem => item.UserAccountId)
+                                        </h5>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <p class="text-sm text-gray-700 dark:text-gray-400">
+                                            @Html.DisplayFor(modelItem => item.UserName)
+                                        </p>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="inline-flex items-center justify-center gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-sm text-brand dark:bg-surface-subtle dark:text-brand">
+                                            @item.Role?.RoleName
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="inline-flex items-center justify-center gap-1 rounded-full bg-brand-light px-2.5 py-0.5 text-sm text-brand dark:bg-surface-subtle dark:text-brand">
+                                            @item.LoginProvider
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        @if (item.Status == "ACTIVE")
+                                        {
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-sm text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                                                Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center justify-center gap-1 rounded-full bg-error-light px-2.5 py-0.5 text-sm text-error-dark dark:bg-surface-subtle dark:text-error">
+                                                Inactive
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <p class="text-sm text-gray-700 dark:text-gray-400">
+                                            @(item.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "-")
+                                        </p>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <div class="flex items-center space-x-3.5">
+                                            @if (canView)
+                                            {
+                                                <a asp-action="Details" asp-route-id="@item.UserAccountId" class="px-1 py-1 text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-md transition duration-150"
+                                                   title="View details for @item.UserAccountId">
+                                                    <i class="iconify w-5 h-5" data-icon="tabler:list-details"></i>
+                                                </a>
+                                            }
+
+                                            @* Show Edit button only for Local users *@
+                                            @if (item.LoginProvider == "Local" && canEdit)
+                                            {
+                                            <a asp-action="Edit" asp-route-id="@item.UserAccountId" class="px-1 py-1 text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 rounded-md transition duration-150"
+                                                   title="Edit @item.UserAccountId">
+                                                    <i class="iconify w-5 h-5" data-icon="tabler:edit"></i>
+                                            </a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                
+                @* Pagination Component *@
+                @if (ViewBag.PaginationInfo != null)
+                {
+                    @await Component.InvokeAsync("Pagination", ViewBag.PaginationInfo)
+                }
+            </div>
+        </div>
+        </div>
+</div>
+
+@section Scripts {
+    <script>
+        function changePageSize(newPageSize) {
+            const url = new URL(window.location);
+            url.searchParams.set('pageSize', newPageSize);
+            url.searchParams.set('page', '1'); // Reset to first page when changing page size
+            window.location.href = url.toString();
+        }
+    </script>
+}

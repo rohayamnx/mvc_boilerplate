@@ -1,0 +1,150 @@
+@model mvc_boilerplate.Models.UI.StaffSelectorModel
+
+<!-- Unified Staff Selector Component - Always renders all fields in grid layout -->
+<div>
+    <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
+        @Html.Raw(Model.Label)
+        @if (Model.IsRequired)
+        {
+            <span class="text-red-500">*</span>
+        }
+    </label>
+
+    @if (Model.IsReadOnly)
+    {
+        <div class="border-b border-black dark:border-gray-600 pb-1 text-sm text-gray-700 dark:text-gray-300">
+            @if (!string.IsNullOrEmpty(Model.StaffName))
+            {
+                @Model.StaffName
+            }
+            else
+            {
+                <span class="text-gray-500 dark:text-gray-300 italic">No staff selected</span>
+            }
+        </div>
+        <!-- Preserve hidden inputs for binding even when read-only -->
+        <input name="@Model.GetFieldName("StaffId")"
+            type="hidden"
+            class="selected-staff-id"
+            value="@Model.StaffIdString" />
+        <input name="@Model.GetFieldName("StaffName")"
+            type="hidden"
+            class="selected-staff-name"
+            value="@Model.StaffName" />
+        <input name="@Model.GetFieldName("DepartmentId")"
+            type="hidden"
+            value="@Model.DepartmentId" />
+    }
+    else
+    {
+        <div class="relative">
+            <!-- Searchable input -->
+            <input type="text"
+                id="@Model.GetElementId("staffSearchInput")"
+                class="staff-search-input h-10 px-3 py-2 rounded-lg w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand-500/20 dark:focus:border-brand text-sm text-gray-700 dark:text-gray-300"
+                placeholder="@Model.Placeholder"
+                data-row="@Model.InstanceId"
+                data-field-prefix="@Model.FieldPrefix"
+                data-index="@Model.Index"
+                data-instance-id="@Model.InstanceId"
+                autocomplete="off"
+                value="@Model.StaffName" />
+
+            <!-- Dropdown results -->
+            <div id="@Model.GetElementId("staffDropdownResults")"
+                class="staff-dropdown-results absolute z-50 w-full bg-white text-sm dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto hidden">
+            </div>
+
+            <!-- Loading indicator -->
+            <div id="@Model.GetElementId("loadingStaff")"
+                class="staff-loading-indicator hidden items-center gap-2 text-xs text-blue-600 dark:text-blue-400 mt-2 p-2">
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Loading staff members...</span>
+            </div>
+
+            <!-- Error message placeholder -->
+            <div id="@Model.GetElementId("staffApiError")" class="hidden mt-2 p-2 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400">
+                StaffHub service is unavailable. Please try again later.
+            </div>
+        </div>
+
+        <!-- Hidden inputs for form binding -->
+        <input name="@Model.GetFieldName("StaffId")"
+            type="hidden"
+            class="selected-staff-id"
+            value="@Model.StaffIdString" />
+        <input name="@Model.GetFieldName("StaffName")"
+            type="hidden"
+            class="selected-staff-name"
+            value="@Model.StaffName" />
+        <input name="@Model.GetFieldName("DepartmentId")"
+            type="hidden"
+            value="@Model.DepartmentId" />
+    }
+</div>
+
+<!-- Staff ID field -->
+@if (Model.ShowStaffId)
+{
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
+            Staff ID
+        </label>
+        @if (Model.IsReadOnly)
+        {
+            <div class="border-b border-black dark:border-gray-600 pb-1 text-sm text-gray-700 dark:text-gray-300">
+                @if (!string.IsNullOrEmpty(Model.StaffIdString))
+                {
+                    @Model.StaffIdString
+                }
+                else
+                {
+                    <span class="text-gray-500 dark:text-gray-400 italic">Not specified</span>
+                }
+            </div>
+        }
+        else
+        {
+            <input id="@Model.GetElementId("StaffId_display")"
+                class="w-full border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 rounded-lg focus:outline-none py-2 px-3 text-gray-700 text-sm dark:text-white"
+                placeholder="Auto-filled from staff selection"
+                value="@Model.StaffIdString"
+                readonly />
+        }
+    </div>
+}
+
+<!-- Department field -->
+@if (Model.ShowDepartment)
+{
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
+            Department
+        </label>
+        @if (Model.IsReadOnly)
+        {
+            <div class="border-b border-black dark:border-gray-600 pb-1 text-sm text-gray-700 dark:text-gray-300">
+                @if (!string.IsNullOrEmpty(Model.DepartmentName))
+                {
+                    @Model.DepartmentName
+                }
+                else
+                {
+                    <span class="text-gray-500 dark:text-gray-400 italic">Not specified</span>
+                }
+            </div>
+        }
+        else
+        {
+            <input name="@Model.GetFieldName("DepartmentName")"
+                class="w-full border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 rounded-lg focus:outline-none py-2 px-3 text-sm text-gray-700 dark:text-gray-300"
+                placeholder="Auto-filled from staff selection"
+                value="@Model.DepartmentName"
+                id="@Model.GetElementId("DepartmentName")"
+                readonly />
+        }
+    </div>
+}

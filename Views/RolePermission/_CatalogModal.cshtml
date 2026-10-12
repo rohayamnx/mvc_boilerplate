@@ -1,0 +1,584 @@
+@* Permission Catalog — manage Modules &amp; Permissions (add / rename / description / active / delete).
+   Vanilla JS, no Alpine. Inline <script> below. Standalone: does not
+   share state with the inlined roles-table script. Open via window.catalogModal.open(). *@
+@{
+    // Claim-based permission gates (same pattern as Index.cshtml).
+    var canCreate = User.HasClaim("Permission", "RolePermission.Create");
+    var canEdit   = User.HasClaim("Permission", "RolePermission.Edit");
+    var canDelete = User.HasClaim("Permission", "RolePermission.Delete");
+    var canView   = User.HasClaim("Permission", "RolePermission.View");
+}
+<div id="catalogModal" class="fixed inset-0 hidden z-[999999] flex items-center justify-center p-4" style="display:none;">
+    <div id="catalogBackdrop" class="fixed inset-0 bg-gray-500 bg-opacity-50 backdrop-blur-sm"></div>
+
+    <div id="catalogDialog" class="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4 dark:border-gray-700">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">Permission Catalog</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage modules and permissions that can be assigned to roles.</p>
+            </div>
+            <button type="button" data-action="close" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="iconify text-xl" data-icon="tabler:x"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+            <!-- Add module -->
+            @if (canCreate)
+            {
+            <div class="space-y-2">
+                <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">Add Module</h3>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="newModuleName" maxlength="50" placeholder="Module name (e.g. RoleManagement)"
+                           class="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+                    <input type="text" id="newModuleDesc" maxlength="200" placeholder="Description (optional)"
+                           class="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+                    <button type="button" data-action="addModule"
+                            class="inline-flex items-center gap-1 h-10 px-4 rounded-lg btn-brand text-white text-sm font-semibold disabled:opacity-60">
+                        <i class="iconify" data-icon="tabler:plus"></i> Add
+                    </button>
+                </div>
+            </div>
+            }
+
+            <!-- Add permission -->
+            @if (canCreate)
+            {
+            <div class="space-y-2">
+                <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">Add Permission</h3>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <select id="newPermModuleId" disabled
+                            class="h-10 w-full sm:w-56 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                    </select>
+                    <input type="text" id="newPermName" maxlength="50" placeholder="Permission name (e.g. View)" disabled
+                           class="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+                    <input type="text" id="newPermDesc" maxlength="200" placeholder="Description (optional)" disabled
+                           class="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+                    <button type="button" data-action="addPermission" disabled
+                            class="inline-flex items-center gap-1 h-10 px-4 rounded-lg btn-brand text-white text-sm font-semibold disabled:opacity-60">
+                        <i class="iconify" data-icon="tabler:plus"></i> Add
+                    </button>
+                </div>
+            </div>
+            }
+
+            <!-- Modules & permissions list -->
+            <div class="space-y-2">
+                <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200">Modules &amp; Permissions</h3>
+                <div id="catalogGroups"><!-- rendered by the inline script below --></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end border-t border-gray-100 px-6 py-4 dark:border-gray-700">
+            <button type="button" data-action="close"
+                    class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300">Close</button>
+        </div>
+    </div>
+</div>
+
+@* Standalone toast for the catalog modal (does not reuse the page's Alpine toast). *@
+@* Toast markup removed — notifications now route through the shared Notification
+   component (window.showNotification / showSuccess / showError) via _rolePermApp.notify. *@
+
+<script>
+/* =======================================================================
+ * Permission Catalog — standalone vanilla-JS modal (no Alpine).
+ *
+ * Self-contained: owns its own state, fetches the /RolePermission module &
+ * permission endpoints directly, and renders the list with template strings
+ * + event delegation. Does NOT share state with the inlined roles-table script.
+ *
+ * Open from anywhere: window.catalogModal.open()  /  .close()
+ * ======================================================================= */
+(function () {
+    "use strict";
+
+    const TOKEN_SELECTOR = 'input[name="__RequestVerificationToken"]';
+
+    // Permission flags injected from Razor — controls visibility of
+    // dynamically rendered edit/delete buttons in template strings.
+    const canCreate = @(canCreate ? "true" : "false");
+    const canEdit   = @(canEdit   ? "true" : "false");
+    const canDelete = @(canDelete ? "true" : "false");
+    const canView   = @(canView   ? "true" : "false");
+
+    const state = {
+        groups: [],
+        loading: false,
+        saving: false,
+        editingModuleId: null,     // moduleId being edited, or null
+        editingPermissionId: null, // permissionId being edited, or null
+        newPermModuleId: "",
+    };
+
+    // Edit buffers (only one edit popover open at a time).
+    const editModule = {};      // { moduleName, description, isActive }
+    const editPermission = {};  // { permissionName, description, isActive }
+
+    let token = "";
+
+    // ── DOM refs (cached on first open) ──────────────────────
+    let modal, backdrop, groupsRoot;
+    const byId = (id) => document.getElementById(id);
+
+    function cacheDom() {
+        modal = byId("catalogModal");
+        backdrop = byId("catalogBackdrop");
+        groupsRoot = byId("catalogGroups");
+    }
+
+    // ── Helpers ──────────────────────────────────────────────
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+
+    async function getJson(url) {
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) throw await toError(res);
+        return res.status === 204 ? null : res.json();
+    }
+
+    async function sendJson(url, method, body) {
+        const res = await fetch(url, {
+            method,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "RequestVerificationToken": token,
+            },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!res.ok) throw await toError(res);
+        return res.status === 204 ? null : res.json();
+    }
+
+    async function toError(res) {
+        let message = `Request failed (${res.status})`;
+        try {
+            const data = await res.json();
+            if (data && data.message) message = data.message;
+            else if (data && data.title) message = data.title;
+        } catch (_) { /* keep default */ }
+        return { message, status: res.status };
+    }
+
+    function notify(message, type = "success") {
+        if (window._rolePermApp) window._rolePermApp.notify(message, type);
+        else if (window.showNotification) window.showNotification(message, type);
+        else window.alert(message);
+    }
+
+    function setSaving(flag) {
+        state.saving = flag;
+        if (!modal) return;
+        modal.querySelectorAll(
+            "[data-action='addModule'], [data-action='addPermission'], " +
+            "[data-action='saveModule'], [data-action='savePermission']"
+        ).forEach((b) => { b.disabled = flag; });
+    }
+
+    function setPermAddDisabled(flag) {
+        const sel = byId("newPermModuleId");
+        const nm = byId("newPermName");
+        const ds = byId("newPermDesc");
+        if (sel) sel.disabled = flag;
+        if (nm) nm.disabled = flag;
+        if (ds) ds.disabled = flag;
+        const btn = modal && modal.querySelector("[data-action='addPermission']");
+        if (btn) btn.disabled = flag;
+    }
+
+    // ── Open / close ─────────────────────────────────────────
+    function open() {
+        if (!modal) cacheDom();
+        if (!modal) return;
+        const t = document.querySelector(TOKEN_SELECTOR);
+        token = t ? t.value : "";
+        modal.style.display = "flex";
+        document.addEventListener("keydown", onKeydown);
+        void refresh();
+    }
+
+    function close() {
+        if (modal) modal.style.display = "none";
+        document.removeEventListener("keydown", onKeydown);
+        state.editingModuleId = null;
+        state.editingPermissionId = null;
+    }
+
+    function onKeydown(e) {
+        if (e.key === "Escape") close();
+    }
+
+    // ── Data ─────────────────────────────────────────────────
+    async function refresh() {
+        state.loading = true;
+        setPermAddDisabled(true);
+        renderGroups();
+        try {
+            state.groups = await getJson("/RolePermission/Modules");
+            if (state.groups.length > 0 && !state.newPermModuleId) {
+                state.newPermModuleId = String(state.groups[0].moduleId);
+            }
+            renderPermModuleSelect();
+            setPermAddDisabled(state.groups.length === 0);
+        } catch (e) {
+            notify(e.message || "Failed to load catalog", "error");
+            state.groups = [];
+            renderPermModuleSelect();
+        } finally {
+            state.loading = false;
+            renderGroups();
+        }
+    }
+
+    function renderPermModuleSelect() {
+        const sel = byId("newPermModuleId");
+        if (!sel) return;
+        const current = state.newPermModuleId;
+        sel.innerHTML = state.groups.map((g) =>
+            `<option value="${esc(g.moduleId)}">${esc(g.moduleName)}</option>`
+        ).join("");
+        if (current && state.groups.some((g) => String(g.moduleId) === current)) {
+            sel.value = current;
+        } else if (state.groups.length > 0) {
+            sel.value = String(state.groups[0].moduleId);
+            state.newPermModuleId = sel.value;
+        } else {
+            state.newPermModuleId = "";
+        }
+    }
+
+    // ── Render groups ────────────────────────────────────────
+    function renderGroups() {
+        if (!groupsRoot) return;
+        if (state.loading) {
+            groupsRoot.innerHTML =
+                `<div class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</div>`;
+            return;
+        }
+        if (state.groups.length === 0) {
+            groupsRoot.innerHTML =
+                `<div class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No modules yet. Add one above.</div>`;
+            return;
+        }
+        groupsRoot.innerHTML = state.groups.map(groupHtml).join("");
+        // Scan newly injected icons (Iconify usually observes, but be safe).
+        if (window.Iconify) window.Iconify.scan(groupsRoot);
+    }
+
+    function groupHtml(g) {
+        const moduleRow = state.editingModuleId === g.moduleId
+            ? moduleEditHtml(g) : moduleViewHtml(g);
+        const perms = g.permissions.length === 0
+            ? `<div class="text-xs text-gray-400">No permissions</div>`
+            : g.permissions.map((p) => permissionHtml(p, g.moduleId)).join("");
+        return `
+        <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+            ${moduleRow}
+            <div class="mt-2 flex flex-col gap-1">${perms}</div>
+        </div>`;
+    }
+
+    function moduleViewHtml(g) {
+        return `
+        <div class="flex items-center justify-between">
+            <div class="flex flex-col">
+                <span class="text-sm font-bold text-gray-800 dark:text-gray-100">
+                    ${esc(g.moduleName)}
+                    ${g.isActive ? "" : '<span class="ml-2 text-xs text-gray-400">(inactive)</span>'}
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">${esc(g.description || "")}</span>
+            </div>
+            <div class="flex items-center gap-1">
+                ${canEdit ? `<button type="button" data-action="editModule" data-id="${esc(g.moduleId)}"
+                        title="Edit module" class="p-1.5 rounded-md text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                    <i class="iconify text-base" data-icon="tabler:edit"></i>
+                </button>` : ""}
+                ${canDelete ? `<button type="button" data-action="deleteModule" data-id="${esc(g.moduleId)}"
+                        title="Delete module" class="p-1.5 rounded-md text-error hover:bg-error-light dark:hover:bg-gray-700">
+                    <i class="iconify text-base" data-icon="tabler:trash"></i>
+                </button>` : ""}
+            </div>
+        </div>`;
+    }
+
+    function moduleEditHtml(g) {
+        const m = editModule;
+        return `
+        <div class="space-y-2 rounded-lg border border-brand bg-brand-light p-3 dark:bg-gray-900">
+            <div class="flex items-center gap-2">
+                <input type="text" id="editModuleName" maxlength="50" placeholder="Module name" value="${esc(m.moduleName)}"
+                       class="h-9 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+                <label class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+                    <input type="checkbox" id="editModuleActive" class="rounded border-gray-300 text-brand dark:border-gray-600 dark:bg-gray-800" ${m.isActive ? "checked" : ""} /> Active
+                </label>
+            </div>
+            <input type="text" id="editModuleDesc" maxlength="200" placeholder="Description" value="${esc(m.description)}"
+                   class="h-9 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+            <div class="flex justify-end gap-2">
+                <button type="button" data-action="cancelEditModule" class="px-3 py-1 rounded-md text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
+                <button type="button" data-action="saveModule" data-id="${esc(g.moduleId)}"
+                        class="px-3 py-1 rounded-md btn-brand text-white text-xs disabled:opacity-60">Save</button>
+            </div>
+        </div>`;
+    }
+
+    function permissionHtml(p, moduleId) {
+        if (state.editingPermissionId === p.permissionId) {
+            return permissionEditHtml(p);
+        }
+        return `
+        <div class="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900">
+            <div class="flex flex-col">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    ${esc(p.permissionName)}
+                    ${p.isActive ? "" : '<span class="ml-2 text-xs text-gray-400">(inactive)</span>'}
+                </span>
+                <span class="text-xs text-gray-400 dark:text-gray-500">${esc(p.claimValue)}</span>
+            </div>
+            <div class="flex items-center gap-1">
+                ${canEdit ? `<button type="button" data-action="editPermission" data-id="${esc(p.permissionId)}" data-module-id="${esc(moduleId)}"
+                        title="Edit permission" class="p-1.5 rounded-md text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                    <i class="iconify text-base" data-icon="tabler:edit"></i>
+                </button>` : ""}
+                ${canDelete ? `<button type="button" data-action="deletePermission" data-id="${esc(p.permissionId)}" data-claim="${esc(p.claimValue)}"
+                        title="Delete permission" class="p-1.5 rounded-md text-error hover:bg-error-light dark:hover:bg-gray-700">
+                    <i class="iconify text-base" data-icon="tabler:trash"></i>
+                </button>` : ""}
+            </div>
+        </div>`;
+    }
+
+    function permissionEditHtml(p) {
+        const e = editPermission;
+        return `
+        <div class="space-y-2 rounded-lg border border-brand bg-brand-light p-3 dark:bg-gray-900">
+            <div class="flex items-center gap-2">
+                <input type="text" id="editPermName" maxlength="50" placeholder="Permission name" value="${esc(e.permissionName)}"
+                       class="h-9 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+                <label class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+                    <input type="checkbox" id="editPermActive" class="rounded border-gray-300 text-brand dark:border-gray-600 dark:bg-gray-800" ${e.isActive ? "checked" : ""} /> Active
+                </label>
+            </div>
+            <input type="text" id="editPermDesc" maxlength="200" placeholder="Description" value="${esc(e.description)}"
+                   class="h-9 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200" />
+            <div class="flex justify-end gap-2">
+                <button type="button" data-action="cancelEditPermission" class="px-3 py-1 rounded-md text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
+                <button type="button" data-action="savePermission" data-id="${esc(p.permissionId)}"
+                        class="px-3 py-1 rounded-md btn-brand text-white text-xs disabled:opacity-60">Save</button>
+            </div>
+        </div>`;
+    }
+
+    // ── Actions ──────────────────────────────────────────────
+    function findGroup(id) {
+        return state.groups.find((g) => String(g.moduleId) === String(id));
+    }
+
+    function findPermission(moduleId, permId) {
+        const g = findGroup(moduleId);
+        return g && g.permissions.find((p) => String(p.permissionId) === String(permId));
+    }
+
+    function startEditModule(id) {
+        const g = findGroup(id);
+        if (!g) return;
+        editModule.moduleName = g.moduleName;
+        editModule.description = g.description || "";
+        editModule.isActive = g.isActive;
+        state.editingModuleId = g.moduleId;
+        state.editingPermissionId = null;
+        renderGroups();
+        const f = byId("editModuleName");
+        if (f) f.focus();
+    }
+
+    function cancelEditModule() {
+        state.editingModuleId = null;
+        renderGroups();
+    }
+
+    async function saveModule(id) {
+        const name = (byId("editModuleName").value || "").trim();
+        if (!name) { notify("Module name is required", "error"); return; }
+        const description = (byId("editModuleDesc").value || "").trim();
+        const isActive = byId("editModuleActive").checked;
+        setSaving(true);
+        try {
+            await sendJson(`/RolePermission/UpdateModule/${id}`, "PUT", {
+                moduleName: name, description: description || null, isActive,
+            });
+            notify("Module updated");
+            state.editingModuleId = null;
+            await refresh();
+        } catch (e) {
+            notify(e.message || "Failed to update module", "error");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function deleteModule(id) {
+        const g = findGroup(id);
+        if (!g) return;
+        if (g.permissions.length > 0) {
+            notify(`Cannot delete module '${g.moduleName}' — delete its permissions first`, "error");
+            return;
+        }
+        if (!window.confirm(`Delete module '${g.moduleName}'?`)) return;
+        try {
+            await sendJson(`/RolePermission/DeleteModule/${id}`, "DELETE");
+            notify("Module deleted");
+            await refresh();
+        } catch (e) {
+            notify(e.message || "Failed to delete module", "error");
+        }
+    }
+
+    async function addModule() {
+        const name = (byId("newModuleName").value || "").trim();
+        if (!name) { notify("Module name is required", "error"); return; }
+        const description = (byId("newModuleDesc").value || "").trim();
+        setSaving(true);
+        try {
+            await sendJson("/RolePermission/CreateModule", "POST", {
+                moduleName: name, description: description || null,
+            });
+            notify("Module added");
+            byId("newModuleName").value = "";
+            byId("newModuleDesc").value = "";
+            await refresh();
+        } catch (e) {
+            notify(e.message || "Failed to add module", "error");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function addPermission() {
+        const moduleId = byId("newPermModuleId").value;
+        const name = (byId("newPermName").value || "").trim();
+        if (!name) { notify("Permission name is required", "error"); return; }
+        if (!moduleId) { notify("Please select a module", "error"); return; }
+        const description = (byId("newPermDesc").value || "").trim();
+        setSaving(true);
+        try {
+            await sendJson("/RolePermission/CreatePermission", "POST", {
+                moduleId: Number(moduleId), permissionName: name, description: description || null,
+            });
+            notify("Permission added");
+            byId("newPermName").value = "";
+            byId("newPermDesc").value = "";
+            await refresh();
+        } catch (e) {
+            notify(e.message || "Failed to add permission", "error");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    function startEditPermission(permId, moduleId) {
+        const p = findPermission(moduleId, permId);
+        if (!p) return;
+        editPermission.permissionName = p.permissionName;
+        editPermission.description = p.description || "";
+        editPermission.isActive = p.isActive;
+        state.editingPermissionId = p.permissionId;
+        state.editingModuleId = null;
+        renderGroups();
+        const f = byId("editPermName");
+        if (f) f.focus();
+    }
+
+    function cancelEditPermission() {
+        state.editingPermissionId = null;
+        renderGroups();
+    }
+
+    async function savePermission(id) {
+        const name = (byId("editPermName").value || "").trim();
+        if (!name) { notify("Permission name is required", "error"); return; }
+        const description = (byId("editPermDesc").value || "").trim();
+        const isActive = byId("editPermActive").checked;
+        setSaving(true);
+        try {
+            await sendJson(`/RolePermission/UpdatePermission/${id}`, "PUT", {
+                permissionName: name, description: description || null, isActive,
+            });
+            notify("Permission updated");
+            state.editingPermissionId = null;
+            await refresh();
+        } catch (e) {
+            notify(e.message || "Failed to update permission", "error");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function deletePermission(id, claimValue) {
+        if (!window.confirm(`Delete permission '${claimValue}'?`)) return;
+        try {
+            await sendJson(`/RolePermission/DeletePermission/${id}`, "DELETE");
+            notify("Permission deleted");
+            await refresh();
+        } catch (e) {
+            notify(e.message || "Failed to delete permission", "error");
+        }
+    }
+
+    // ── Event delegation ─────────────────────────────────────
+    function onModalClick(e) {
+        // Backdrop click closes.
+        if (e.target === backdrop) { close(); return; }
+
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        const moduleId = btn.dataset.moduleId;
+        const claim = btn.dataset.claim;
+
+        switch (action) {
+            case "close": close(); break;
+            case "addModule": void addModule(); break;
+            case "addPermission": void addPermission(); break;
+            case "editModule": startEditModule(id); break;
+            case "cancelEditModule": cancelEditModule(); break;
+            case "saveModule": void saveModule(id); break;
+            case "deleteModule": void deleteModule(id); break;
+            case "editPermission": startEditPermission(id, moduleId); break;
+            case "cancelEditPermission": cancelEditPermission(); break;
+            case "savePermission": void savePermission(id); break;
+            case "deletePermission": void deletePermission(id, claim); break;
+        }
+    }
+
+    function onPermModuleChange(e) {
+        state.newPermModuleId = e.target.value;
+    }
+
+    // ── Boot ─────────────────────────────────────────────────
+    function init() {
+        cacheDom();
+        if (!modal) return;
+        modal.addEventListener("click", onModalClick);
+        const sel = byId("newPermModuleId");
+        if (sel) sel.addEventListener("change", onPermModuleChange);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+
+    // Public API
+    window.catalogModal = { open, close };
+})();
+</script>

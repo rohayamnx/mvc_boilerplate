@@ -1,0 +1,451 @@
+@model mvc_boilerplate.Models.UI.PaginatedList<mvc_boilerplate.Models.Dto.RoleListDto>
+@using mvc_boilerplate.Models.Dto
+@using mvc_boilerplate.Models.UI
+@using mvc_boilerplate.Models
+
+@{
+    ViewData["Title"] = "Role & Permission Management";
+    ViewData["Module"] = "RolePermission";
+
+    // Claim-based permission gates. Claim value format is
+    // "{ModuleName}.{PermissionName}" (e.g. "RolePermission.Create").
+    var canCreate = User.HasClaim("Permission", "RolePermission.Create");
+    var canEdit = User.HasClaim("Permission", "RolePermission.Edit");
+    var canDelete = User.HasClaim("Permission", "RolePermission.Delete");
+    var canView = User.HasClaim("Permission", "RolePermission.View");
+}
+
+@Html.AntiForgeryToken()
+
+<div class="p-4 md:p-4 space-y-4">
+
+    <!-- Page Title -->
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-700 dark:text-white"> @ViewData["Title"]</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Configure permissions by role.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            @if (canView)
+            {
+                <button type="button" onclick="window.catalogModal?.open()"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 transition">
+                    <i class="iconify text-lg" data-icon="tabler:shield-check"></i>
+                    Permission Catalog
+                </button>
+            }
+            @if (canCreate)
+            {
+                <button type="button" onclick="window.roleForm?.openCreate()"
+                        class="inline-flex items-center gap-2 px-4 py-2 btn-brand text-white text-sm font-medium transition">
+                    <i class="iconify text-lg" data-icon="tabler:plus"></i>
+                    Add Role
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="border rounded-lg border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light p-4 mb-2">
+        <div class="mb-6">
+            <form asp-action="Index" method="get" class="w-full">
+                <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+
+                    <div class="flex flex-col gap-2 w-full lg:w-auto">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                        <div class="relative">
+                            <input type="text" name="search" value="@ViewData["CurrentFilter"]"
+                                   placeholder="Search by role name or description..."
+                                   class="h-10 px-3 py-2 focus:border-brand focus:ring-3 focus:ring-brand-500/20 dark:focus:border-brand w-full lg:w-64 rounded-lg border border-gray-300 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none dark:border-gray-700" />
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 w-full lg:w-auto">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <div x-data="{ isOptionSelected: false }" class="relative z-20 bg-transparent min-w-48">
+                            <select name="status"
+                                    class="h-10 px-3 py-2 focus:border-brand focus:ring-3 focus:ring-brand-500/20 dark:focus:border-brand w-full lg:w-64 rounded-lg border border-gray-300 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none dark:border-gray-700"
+                                    :class="isOptionSelected && 'text-gray-800 dark:text-white/90'"
+                                    @@change="isOptionSelected = true">
+                                <option value="" class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                    All Status
+                                </option>
+                                <option value="ACTIVE"
+                                        selected="@(ViewData["StatusFilter"]?.ToString() == "ACTIVE")"
+                                        class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                    Active
+                                </option>
+                                <option value="INACTIVE"
+                                        selected="@(ViewData["StatusFilter"]?.ToString() == "INACTIVE")"
+                                        class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                    Inactive
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-1 lg:col-span-1 flex items-end">
+                        <button type="submit" class="w-full h-10 px-3 py-2 flex items-center justify-center gap-2 text-sm font-medium btn-brand">
+                            <i class="iconify w-4 h-4" data-icon="material-symbols-light:filter-alt"></i>
+                            Filter
+                        </button>
+                    </div>
+
+                    <div class="sm:col-span-1 lg:col-span-1 flex items-end">
+                        <a asp-action="Index" asp-route-pageSize="@(ViewBag.PaginationInfo?.PageSize ?? 10)" class="w-full h-10 px-3 py-2 flex items-center justify-center gap-2 text-sm font-medium bg-gray-200 hover:bg-gray-300 dark:hover:bg-gray-800 text-gray-600 dark:hover:text-gray-200 transition rounded-xl border border-gray-300 dark:border-gray-600 dark:hover:border-gray-500">
+                            <i class="iconify w-4 h-4" data-icon="material-symbols-light:filter-alt-off"></i>
+                            Clear Filter
+                        </a>
+                    </div>
+
+                </div>
+            </form>
+
+            <!-- Page Size Selector -->
+            <div class="flex items-center justify-end gap-3 mt-4">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Show</label>
+                <select id="pageSizeSelector" class="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                        onchange="changePageSize(this.value)">
+                    @{
+                        var currentPageSize = ViewBag.PaginationInfo?.PageSize ?? 10;
+                    }
+                    <option value="5" selected="@(currentPageSize == 5)">5</option>
+                    <option value="10" selected="@(currentPageSize == 10)">10</option>
+                    <option value="25" selected="@(currentPageSize == 25)">25</option>
+                    <option value="50" selected="@(currentPageSize == 50)">50</option>
+                </select>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">per page</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-10">
+            <div class="rounded-xl border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light">
+                <div class="max-w-full overflow-x-auto">
+                    <table class="w-full table-auto">
+                        <thead class="border-gray-100 border-y bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+                            <tr class="border-b border-gray-100 dark:border-gray-800">
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    No.
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Role
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Description
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Status
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Permissions
+                                </th>
+                                <th class="px-6 py-3 font-medium text-left text-gray-700 text-sm dark:text-gray-400">
+                                    Users
+                                </th>
+                                <th class="px-6 py-3 font-medium text-right text-gray-700 text-sm dark:text-gray-400">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            @{
+                                var currentPaginationInfo = ViewBag.PaginationInfo as mvc_boilerplate.Models.UI.PaginationInfo;
+                                int rowNumber = currentPaginationInfo != null ?
+                                    ((currentPaginationInfo.CurrentPage - 1) * currentPaginationInfo.PageSize) : 0;
+                            }
+                            @foreach (var item in Model)
+                            {
+                                rowNumber++;
+                                var badge = item.IsActive
+                                    ? new { text = "Active", cls = "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" }
+                                    : new { text = "Inactive", cls = "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400" };
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                                    data-role-id="@item.RoleId"
+                                    data-role-name="@item.RoleName"
+                                    data-description="@(item.Description ?? "")"
+                                    data-is-active="@item.IsActive.ToString().ToLower()">
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="text-gray-700 text-sm dark:text-gray-400">
+                                            @rowNumber
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                            @Html.DisplayFor(modelItem => item.RoleName)
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3">
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                                            @(item.Description ?? "-")
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium @badge.cls">
+                                            @badge.text
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="inline-flex items-center rounded-full bg-brand-light px-2.5 py-0.5 text-xs text-brand dark:bg-surface-subtle dark:text-brand">
+                                            @item.PermissionCount
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <span class="text-sm text-gray-700 dark:text-gray-400">
+                                            @item.UserCount
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        <div class="flex items-center justify-end gap-2">
+                                            @if (canEdit)
+                                            {
+                                                <button type="button" class="rp-perm-btn inline-flex items-center gap-1 px-2 py-1 rounded-md text-brand hover:bg-brand-light dark:hover:bg-surface-subtle text-xs font-medium transition" data-role-id="@item.RoleId" title="Manage permissions">
+                                                    <i class="iconify text-base" data-icon="tabler:key"></i> Permissions
+                                                </button>
+                                            }
+                                            <div class="relative">
+                                                <button type="button" class="rp-menu-btn p-1.5 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" data-role-id="@item.RoleId" title="Actions">
+                                                    <i class="iconify text-lg" data-icon="tabler:dots-vertical"></i>
+                                                </button>
+                                                <div class="rp-menu absolute right-0 z-20 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden">
+                                                    @if (canView)
+                                                    {
+                                                        <button type="button" class="rp-menu-item w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700" data-action="view">
+                                                            <i class="iconify text-base" data-icon="tabler:eye"></i> View
+                                                        </button>
+                                                    }
+                                                    @if (canEdit)
+                                                    {
+                                                        <button type="button" class="rp-menu-item w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700" data-action="edit">
+                                                            <i class="iconify text-base" data-icon="tabler:edit"></i> Edit
+                                                        </button>
+                                                    }
+                                                    @if (canDelete)
+                                                    {
+                                                        <button type="button" class="rp-menu-item w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-error-light dark:hover:bg-gray-700" data-action="delete">
+                                                            <i class="iconify text-base" data-icon="tabler:trash"></i> Delete
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @* Pagination Component *@
+                @if (ViewBag.PaginationInfo != null)
+                {
+                    @await Component.InvokeAsync("Pagination", ViewBag.PaginationInfo)
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub-components (modals / drawers) -->
+    <partial name="_RoleFormModal" />
+    <partial name="_PermissionDrawer" />
+    <partial name="_CatalogModal" />
+    <partial name="_DetailDrawer" />
+
+    <!-- Delete Confirmation Modal -->
+    @await Component.InvokeAsync("DeleteModal", new mvc_boilerplate.Models.DeleteModalViewModel
+    {
+        ModalId = "deleteRoleModal",
+        FormId = "deleteRoleForm",
+        Title = "Delete Role",
+        Message = "Delete role <strong id='roleDeleteDisplay'></strong>? Users assigned to this role must be removed first.",
+        DeleteButtonText = "Delete",
+        CancelButtonText = "Cancel",
+        DeleteAction = Url.Action("Delete", "RolePermission")!,
+        ItemNameElementId = "roleDeleteDisplay"
+    })
+
+</div>
+
+@section Scripts {
+    <script>
+        function changePageSize(newPageSize) {
+            const url = new URL(window.location);
+            url.searchParams.set('pageSize', newPageSize);
+            url.searchParams.set('page', '1'); // Reset to first page when changing page size
+            window.location.href = url.toString();
+        }
+    </script>
+
+    <script>
+    /* =======================================================================
+     * Role & Permission Management — row-action wiring (vanilla JS).
+     *
+     * The table is server-rendered and paginated via the shared Pagination
+     * component. This module only wires the per-row action controls to the
+     * sibling drawers/modals and the shared DeleteModal, and exposes the
+     * public contract the sibling modules rely on:
+     *   window._rolePermApp.notify(msg, type)   // type: 'success' | 'error'
+     *   window._rolePermApp.refresh()           // reload the table page
+     *
+     * Sibling modules are decoupled:
+     *   - _PermissionDrawer / _DetailDrawer call window._rolePermApp.{notify,refresh}
+     *   - _RoleFormModal dispatches `roles:changed` on document after a save
+     * Unsafe requests carry the antiforgery token via the RequestVerificationToken
+     * header (read from the hidden antiforgery-token input rendered by
+     * Html.AntiForgeryToken() at the top of the page).
+     * ======================================================================= */
+    (function () {
+        "use strict";
+
+        const TOKEN_SELECTOR = 'input[name="__RequestVerificationToken"]';
+        let token = "";
+        let openMenuTr = null;       // <tr> whose action dropdown is open
+        let deletingRoleId = null;   // role awaiting confirmation in the delete modal
+
+        // ── Public contract ────────────────────────────────────────────
+        function notify(message, type) {
+            type = type || "success";
+            if (window.showNotification) window.showNotification(message, type);
+            else window.alert(message);
+        }
+        function refresh() { window.location.reload(); }
+        window._rolePermApp = { notify: notify, refresh: refresh };
+
+        // ── Helpers ─────────────────────────────────────────────────────
+        function roleFromRow(tr) {
+            if (!tr) return null;
+            return {
+                roleId: parseInt(tr.dataset.roleId, 10),
+                roleName: tr.dataset.roleName || "",
+                description: tr.dataset.description || "",
+                isActive: tr.dataset.isActive === "true",
+            };
+        }
+
+        async function sendJson(url, method) {
+            const res = await fetch(url, {
+                method: method,
+                headers: {
+                    "Accept": "application/json",
+                    "RequestVerificationToken": token,
+                },
+            });
+            if (!res.ok) {
+                let message = `Request failed (${res.status})`;
+                try {
+                    const data = await res.json();
+                    if (data && data.message) message = data.message;
+                } catch (_) { /* keep default */ }
+                throw { message: message, status: res.status };
+            }
+            return res.status === 204 ? null : res.json();
+        }
+
+        // ── Row action menu ────────────────────────────────────────────
+        function openMenu(tr) {
+            closeMenu();
+            openMenuTr = tr;
+            const menu = tr.querySelector(".rp-menu");
+            if (menu) menu.classList.remove("hidden");
+        }
+
+        function closeMenu() {
+            if (openMenuTr) {
+                const menu = openMenuTr.querySelector(".rp-menu");
+                if (menu) menu.classList.add("hidden");
+                openMenuTr = null;
+            }
+        }
+
+        // ── Delete confirm ─────────────────────────────────────────────
+        function confirmDelete(role) {
+            if (!role) return;
+            deletingRoleId = role.roleId;
+            openDeleteModal_deleteRoleModal(role.roleId, role.roleName || "");
+        }
+
+        async function doDelete() {
+            const roleId = deletingRoleId;
+            if (roleId == null) return;
+            try {
+                await sendJson(`/RolePermission/Delete/${roleId}`, "DELETE");
+                notify("Role deleted");
+            } catch (e) {
+                notify(e.message || "Failed to delete role", "error");
+                closeDeleteModal('deleteRoleModal');
+                return;
+            }
+            closeDeleteModal('deleteRoleModal');
+            deletingRoleId = null;
+            refresh();
+        }
+
+        // ── Event wiring ────────────────────────────────────────────────
+        function onTableClick(e) {
+            // Permissions button
+            const permBtn = e.target.closest(".rp-perm-btn");
+            if (permBtn) {
+                const tr = permBtn.closest("tr");
+                const role = roleFromRow(tr);
+                if (role) window.PermissionDrawer?.open(role);
+                return;
+            }
+            // Menu toggle button
+            const menuBtn = e.target.closest(".rp-menu-btn");
+            if (menuBtn) {
+                const tr = menuBtn.closest("tr");
+                if (openMenuTr === tr) closeMenu(); else openMenu(tr);
+                return;
+            }
+            // Menu item
+            const item = e.target.closest(".rp-menu-item");
+            if (item) {
+                const tr = item.closest("tr");
+                const role = roleFromRow(tr);
+                const action = item.dataset.action;
+                closeMenu();
+                if (!role) return;
+                if (action === "view") window.DetailDrawer?.open(role);
+                else if (action === "edit") window.roleForm?.openEdit(role);
+                else if (action === "delete") confirmDelete(role);
+                return;
+            }
+        }
+
+        function wireEvents() {
+            const tableBody = document.querySelector("tbody");
+            if (tableBody) tableBody.addEventListener("click", onTableClick);
+
+            // Close any open row menu when clicking outside it.
+            document.addEventListener("click", (e) => {
+                if (!openMenuTr) return;
+                if (e.target.closest(".rp-menu-btn") || e.target.closest(".rp-menu-item")) return;
+                closeMenu();
+            });
+
+            // Intercept the shared delete modal form submit to keep AJAX behaviour.
+            const deleteRoleForm = document.getElementById("deleteRoleForm");
+            if (deleteRoleForm) {
+                deleteRoleForm.addEventListener("submit", (e) => {
+                    e.preventDefault();
+                    void doDelete();
+                });
+            }
+
+            // _RoleFormModal dispatches this after a successful create/update.
+            document.addEventListener("roles:changed", () => refresh());
+        }
+
+        function init() {
+            const t = document.querySelector(TOKEN_SELECTOR);
+            token = t ? t.value : "";
+            wireEvents();
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+}

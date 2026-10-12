@@ -1,0 +1,333 @@
+@* Permission assignment drawer — RolePermission junction, bulk upsert. *@
+
+<!-- Permission Drawer Slide-in -->
+<div id="permDrawerSlide"
+     class="fixed inset-y-0 right-0 z-[999999] w-full max-w-lg border-l border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800 transform translate-x-full transition-transform duration-300 overflow-y-auto">
+    <div class="h-full flex flex-col">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4 dark:border-gray-700">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">
+                    Permissions
+                    <span id="permDrawerRoleLabel" class="hidden text-gray-500 dark:text-gray-400">
+                        — <span id="permDrawerRoleName"></span>
+                    </span>
+                </h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Toggle the permissions assigned to this role. Changes replace all existing assignments.</p>
+            </div>
+            <button type="button" onclick="PermissionDrawer.close()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="iconify text-xl" data-icon="tabler:x"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-6 py-5">
+            <!-- Loading -->
+            <div id="permDrawerLoading" class="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                Loading permissions…
+            </div>
+            <!-- Empty -->
+            <div id="permDrawerEmpty" class="hidden flex-col items-center justify-center gap-3 py-12 text-center">
+                <p class="text-sm text-gray-500 dark:text-gray-400">No modules or permissions defined yet.</p>
+                <button type="button" onclick="PermissionDrawer.close(); window.catalogModal?.open()"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 dark:border-gray-600 dark:text-gray-300">
+                    <i class="iconify" data-icon="tabler:shield-check"></i> Open Permission Catalog
+                </button>
+            </div>
+            <!-- Content (module groups rendered here) -->
+            <div id="permDrawerContent" class="space-y-4 hidden"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-4 dark:border-gray-700">
+            <button type="button" onclick="PermissionDrawer.close()"
+                    class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-semibold text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300">
+                Cancel
+            </button>
+            <button type="button" id="permDrawerSaveBtn" onclick="PermissionDrawer.save()"
+                    class="px-4 py-2 rounded-xl btn-brand text-white text-sm font-semibold disabled:opacity-60">
+                Save Permissions
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="permDrawerOverlay"
+     class="fixed inset-0 z-[100000] bg-gray-950/50 backdrop-blur-[2px] hidden"
+     onclick="PermissionDrawer.close()"></div>
+
+<script>
+window.PermissionDrawer = (function () {
+    const slide     = document.getElementById('permDrawerSlide');
+    const overlay   = document.getElementById('permDrawerOverlay');
+    const loading   = document.getElementById('permDrawerLoading');
+    const empty     = document.getElementById('permDrawerEmpty');
+    const content   = document.getElementById('permDrawerContent');
+    const roleLabel = document.getElementById('permDrawerRoleLabel');
+    const roleName  = document.getElementById('permDrawerRoleName');
+    const saveBtn   = document.getElementById('permDrawerSaveBtn');
+
+    // Move both elements to <body> so they are siblings of the scroll container,
+    // escaping the sticky header's GPU compositing layer in Chrome/Edge.
+    document.body.appendChild(slide);
+    document.body.appendChild(overlay);
+
+    let currentRole     = null;
+    let selectedPermIds = [];
+    let allClaimIds     = [];
+    let saving          = false;
+
+    function token() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+    }
+
+    function notify(msg, type) {
+        window._rolePermApp?.notify(msg, type ?? 'success');
+    }
+
+    function show(el) { el.classList.remove('hidden'); }
+    function hide(el) { el.classList.add('hidden'); }
+
+    // ── Open / Close ─────────────────────────────────────────────────
+
+    function open(role) {
+        currentRole     = null;
+        selectedPermIds = [];
+        allClaimIds     = [];
+
+        hide(empty);
+        hide(content);
+        show(loading);
+        roleLabel.classList.add('hidden');
+        roleName.textContent = '';
+
+        overlay.classList.remove('hidden');
+        slide.classList.remove('translate-x-full');
+        document.body.style.overflow = 'hidden';
+
+        loadPermissions(role);
+    }
+
+    function close() {
+        slide.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+        document.body.style.overflow = '';
+        setTimeout(function () {
+            hide(content);
+            show(loading);
+            hide(empty);
+        }, 300);
+    }
+
+    // ── Load data ────────────────────────────────────────────────────
+
+    async function loadPermissions(role) {
+        try {
+            const res = await fetch('/RolePermission/Detail/' + role.roleId, {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+            const detail = await res.json();
+            currentRole = detail;
+
+            roleName.textContent = detail.roleName;
+            roleLabel.classList.remove('hidden');
+
+            selectedPermIds = [];
+            allClaimIds     = [];
+            for (const g of detail.moduleGroups) {
+                for (const p of g.permissions) {
+                    allClaimIds.push(p.permissionId);
+                    if (p.isSelected) selectedPermIds.push(p.permissionId);
+                }
+            }
+
+            hide(loading);
+            if (detail.moduleGroups.length === 0) {
+                empty.classList.remove('hidden');
+                empty.style.display = 'flex';
+            } else {
+                renderGroups(detail.moduleGroups);
+                show(content);
+            }
+        } catch (err) {
+            console.error(err);
+            hide(loading);
+            notify(err.message || 'Failed to load permissions', 'error');
+            close();
+        }
+    }
+
+    // ── Render ───────────────────────────────────────────────────────
+
+    function esc(str) {
+        return (str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderGroups(groups) {
+        let html = '<div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900">'
+                 +   '<span class="text-sm font-semibold text-gray-700 dark:text-gray-200" id="permSummaryText"></span>'
+                 +   '<button type="button" id="permToggleAllBtn" class="text-sm text-brand hover:underline"></button>'
+                 + '</div>';
+
+        for (const group of groups) {
+            html += '<div class="rounded-xl border border-gray-200 p-3 dark:border-gray-700" data-module-id="' + group.moduleId + '">'
+                  +   '<div class="flex items-center justify-between">'
+                  +     '<span class="text-sm font-bold text-gray-800 dark:text-gray-100">' + esc(group.moduleName) + '</span>'
+                  +     '<button type="button" class="perm-module-toggle text-xs text-brand hover:underline" data-module-id="' + group.moduleId + '"></button>'
+                  +   '</div>'
+                  +   '<div class="mt-3 flex flex-col gap-1">';
+
+            for (const perm of group.permissions) {
+                html += '<label class="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900">'
+                      +   '<input type="checkbox" class="perm-checkbox rounded border-gray-300 text-brand focus:ring-brand dark:border-gray-600 dark:bg-gray-800" data-perm-id="' + perm.permissionId + '">'
+                      +   '<span class="flex flex-col">'
+                      +     '<span class="font-medium text-gray-700 dark:text-gray-200">' + esc(perm.permissionName) + '</span>'
+                      +     '<span class="text-xs text-gray-400 dark:text-gray-500">' + esc(perm.claimValue) + '</span>'
+                      +   '</span>'
+                      + '</label>';
+            }
+
+            html += '</div>'
+                  + '<div class="perm-partial-note mt-2 text-xs text-gray-400 hidden">Partially selected</div>'
+                  + '</div>';
+        }
+
+        content.innerHTML = html;
+
+        content.querySelectorAll('.perm-checkbox').forEach(function (cb) {
+            cb.checked = selectedPermIds.includes(parseInt(cb.dataset.permId, 10));
+        });
+
+        updateUI();
+    }
+
+    // ── Event delegation ─────────────────────────────────────────────
+
+    content.addEventListener('change', function (e) {
+        const cb = e.target.closest('.perm-checkbox');
+        if (!cb) return;
+        const pid = parseInt(cb.dataset.permId, 10);
+        if (cb.checked) {
+            if (!selectedPermIds.includes(pid)) selectedPermIds.push(pid);
+        } else {
+            selectedPermIds = selectedPermIds.filter(function (x) { return x !== pid; });
+        }
+        updateUI();
+    });
+
+    content.addEventListener('click', function (e) {
+        if (e.target.closest('#permToggleAllBtn')) {
+            toggleAll();
+            return;
+        }
+        const moduleBtn = e.target.closest('.perm-module-toggle');
+        if (moduleBtn && currentRole) {
+            const mid = parseInt(moduleBtn.dataset.moduleId, 10);
+            const group = currentRole.moduleGroups.find(function (g) { return g.moduleId === mid; });
+            if (group) toggleModule(group);
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !slide.classList.contains('translate-x-full')) close();
+    });
+
+    // ── State helpers ─────────────────────────────────────────────────
+
+    function groupAllSelected(group) {
+        return group.permissions.length > 0 && group.permissions.every(function (p) { return selectedPermIds.includes(p.permissionId); });
+    }
+
+    function groupSomeSelected(group) {
+        return group.permissions.some(function (p) { return selectedPermIds.includes(p.permissionId); });
+    }
+
+    function toggleModule(group) {
+        const ids = group.permissions.map(function (p) { return p.permissionId; });
+        if (groupAllSelected(group)) {
+            selectedPermIds = selectedPermIds.filter(function (x) { return !ids.includes(x); });
+        } else {
+            selectedPermIds = Array.from(new Set(selectedPermIds.concat(ids)));
+        }
+        content.querySelectorAll('.perm-checkbox').forEach(function (cb) {
+            const pid = parseInt(cb.dataset.permId, 10);
+            if (ids.includes(pid)) cb.checked = selectedPermIds.includes(pid);
+        });
+        updateUI();
+    }
+
+    function toggleAll() {
+        const allSelected = allClaimIds.length > 0 && allClaimIds.every(function (id) { return selectedPermIds.includes(id); });
+        selectedPermIds = allSelected ? [] : allClaimIds.slice();
+        content.querySelectorAll('.perm-checkbox').forEach(function (cb) {
+            cb.checked = selectedPermIds.includes(parseInt(cb.dataset.permId, 10));
+        });
+        updateUI();
+    }
+
+    function updateUI() {
+        const summaryEl = document.getElementById('permSummaryText');
+        if (summaryEl) summaryEl.textContent = selectedPermIds.length + ' of ' + allClaimIds.length + ' selected';
+
+        const toggleAllBtn = document.getElementById('permToggleAllBtn');
+        if (toggleAllBtn) {
+            const allSelected = allClaimIds.length > 0 && allClaimIds.every(function (id) { return selectedPermIds.includes(id); });
+            toggleAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
+        }
+
+        if (!currentRole) return;
+        for (const group of currentRole.moduleGroups) {
+            const moduleEl = content.querySelector('[data-module-id="' + group.moduleId + '"]');
+            if (!moduleEl) continue;
+            const btn = moduleEl.querySelector('.perm-module-toggle');
+            if (btn) btn.textContent = groupAllSelected(group) ? 'Deselect' : 'Select All';
+            const partialNote = moduleEl.querySelector('.perm-partial-note');
+            if (partialNote) {
+                if (groupSomeSelected(group) && !groupAllSelected(group)) partialNote.classList.remove('hidden');
+                else partialNote.classList.add('hidden');
+            }
+        }
+    }
+
+    // ── Save ─────────────────────────────────────────────────────────
+
+    async function save() {
+        if (!currentRole || saving) return;
+        saving = true;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        try {
+            const res = await fetch('/RolePermission/UpdatePermissions/' + currentRole.roleId, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': token(),
+                },
+                body: JSON.stringify({ permissionIds: selectedPermIds }),
+            });
+            if (!res.ok) {
+                let msg = 'Request failed (' + res.status + ')';
+                try { const d = await res.json(); if (d && d.message) msg = d.message; } catch (_) {}
+                throw new Error(msg);
+            }
+            notify('Permissions updated', 'success');
+            close();
+            window._rolePermApp?.refresh();
+        } catch (err) {
+            console.error(err);
+            notify(err.message || 'Failed to save permissions', 'error');
+        } finally {
+            saving = false;
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Permissions';
+        }
+    }
+
+    return { open: open, close: close, save: save };
+})();
+</script>

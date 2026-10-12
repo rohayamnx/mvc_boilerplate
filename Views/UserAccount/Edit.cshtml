@@ -1,0 +1,177 @@
+@model mvc_boilerplate.Models.ViewModels.EditUserViewModel
+
+@{
+    ViewData["Title"] = "Edit User Account";
+    ViewData["Module"] = "UserAccount";
+
+    var roles = ViewBag.Roles as List<mvc_boilerplate.Models.Role> ?? new List<mvc_boilerplate.Models.Role>();
+}
+
+<div class="p-4 md:p-4 space-y-4">
+    <!-- Page Header -->
+    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-700 dark:text-white">@ViewData["Title"]</h1>
+            <p class="text-sm text-gray-500">Update details for <span class="font-medium">@Model.UserAccountId</span></p>
+        </div>
+        <div class="mt-6 sm:mt-0 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <div class="flex flex-wrap gap-2">
+                <a asp-action="Index"
+                   class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold"
+                   title="Back to List">
+                    <i class="iconify text-lg" data-icon="material-symbols-light:arrow-back"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="mb-6 bg-green-50 border-l-4 border-green-400 p-4 dark:bg-green-900/20 dark:border-green-500">
+            <div class="flex items-center">
+                <i class="iconify mr-2 text-green-400" data-icon="material-symbols-light:check-circle-outline"></i>
+                <p class="text-green-800 dark:text-green-200">@TempData["SuccessMessage"]</p>
+            </div>
+        </div>
+    }
+
+    <!-- Validation Summary -->
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 dark:bg-red-900/20 dark:border-red-500">
+            <div class="flex items-center mb-2">
+                <i class="iconify mr-2 text-red-400" data-icon="material-symbols-light:error-outline"></i>
+                <p class="text-red-800 dark:text-red-200">Please correct the following errors:</p>
+            </div>
+            <div asp-validation-summary="All" class="text-red-800 dark:text-red-200"></div>
+        </div>
+    }
+
+    <div class="space-y-6 rounded-lg border border-gray-200 bg-white shadow-default dark:border-gray-800 dark:bg-surface-light px-4 py-4 shadow-sm">
+        <form asp-action="Edit" asp-route-id="@Model.UserAccountId" method="post" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="UserAccountId" />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- User Account Id (read-only) -->
+                <div class="flex flex-col gap-2.5">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        User ID
+                    </label>
+                    <input type="text"
+                           value="@Model.UserAccountId"
+                           readonly
+                           class="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 cursor-not-allowed" />
+                    <p class="text-xs text-gray-500 dark:text-gray-400">User ID cannot be changed after creation</p>
+                </div>
+
+                <!-- Username -->
+                <div class="flex flex-col gap-2.5">
+                    <label asp-for="UserName" class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Username <span class="text-red-500">*</span>
+                    </label>
+                    <input asp-for="UserName"
+                           class="w-full rounded-lg border @(ViewData.ModelState["UserName"]?.Errors.Count > 0 ? "border-red-500" : "border-gray-300") bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                           placeholder="e.g., John Doe" />
+                    <span asp-validation-for="UserName" class="text-xs text-red-600 dark:text-red-400"></span>
+                </div>
+
+                <!-- Email -->
+                <div class="flex flex-col gap-2.5">
+                    <label asp-for="Email" class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Email
+                    </label>
+                    <input asp-for="Email"
+                           class="w-full rounded-lg border @(ViewData.ModelState["Email"]?.Errors.Count > 0 ? "border-red-500" : "border-gray-300") bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                           autocomplete="email"
+                           placeholder="e.g., user@example.com" />
+                    <span asp-validation-for="Email" class="text-xs text-red-600 dark:text-red-400"></span>
+                </div>
+
+                <!-- Login Provider (read-only) -->
+                <div class="flex flex-col gap-2.5">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Login Provider
+                    </label>
+                    <input type="text"
+                           value="Local"
+                           readonly
+                           class="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 cursor-not-allowed" />
+                </div>
+
+                <!-- New Password -->
+                <div class="flex flex-col gap-2.5">
+                    <label asp-for="NewPassword" class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        New Password
+                    </label>
+                    <input asp-for="NewPassword"
+                           class="w-full rounded-lg border @(ViewData.ModelState["NewPassword"]?.Errors.Count > 0 ? "border-red-500" : "border-gray-300") bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                           type="password"
+                           autocomplete="new-password"
+                           placeholder="Leave blank to keep current password" />
+                    <span asp-validation-for="NewPassword" class="text-xs text-red-600 dark:text-red-400"></span>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Min 8 characters with uppercase, lowercase, digit, and special character</p>
+                </div>
+
+                <!-- Confirm New Password -->
+                <div class="flex flex-col gap-2.5">
+                    <label asp-for="ConfirmNewPassword" class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Confirm New Password
+                    </label>
+                    <input asp-for="ConfirmNewPassword"
+                           class="w-full rounded-lg border @(ViewData.ModelState["ConfirmNewPassword"]?.Errors.Count > 0 ? "border-red-500" : "border-gray-300") bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                           type="password"
+                           autocomplete="new-password"
+                           placeholder="Confirm new password" />
+                    <span asp-validation-for="ConfirmNewPassword" class="text-xs text-red-600 dark:text-red-400"></span>
+                </div>
+
+                <!-- Role -->
+                <div class="flex flex-col gap-2.5">
+                    <label asp-for="RoleId" class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Role <span class="text-red-500">*</span>
+                    </label>
+                    <select asp-for="RoleId"
+                            class="w-full rounded-lg border @(ViewData.ModelState["RoleId"]?.Errors.Count > 0 ? "border-red-500" : "border-gray-300") bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <option value="">-- Select Role --</option>
+                        @foreach (var role in roles)
+                        {
+                            <option value="@role.RoleId">@role.RoleName</option>
+                        }
+                    </select>
+                    <span asp-validation-for="RoleId" class="text-xs text-red-600 dark:text-red-400"></span>
+                </div>
+
+                <!-- Status -->
+                <div class="flex flex-col gap-2.5">
+                    <label asp-for="Status" class="text-sm font-medium text-gray-700 dark:text-gray-400">
+                        Status <span class="text-red-500">*</span>
+                    </label>
+                    <select asp-for="Status"
+                            class="w-full rounded-lg border @(ViewData.ModelState["Status"]?.Errors.Count > 0 ? "border-red-500" : "border-gray-300") bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                    <span asp-validation-for="Status" class="text-xs text-red-600 dark:text-red-400"></span>
+                </div>
+
+            </div>
+
+            <div class="py-4 flex justify-end gap-4 mt-2">
+                <a asp-action="Index"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold"
+                    title="Back to List">
+                    <i class="iconify text-lg" data-icon="material-symbols-light:arrow-back"></i>
+                </a>
+                <button type="submit" class="btn-brand">
+                    Update
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
