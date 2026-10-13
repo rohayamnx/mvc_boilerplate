@@ -80,13 +80,23 @@ Then edit `appsettings.Development.json` and set at minimum the database connect
 
 > Active Directory and StaffHub API are optional. The app runs without them; AD login and Azure AD buttons are silently disabled when unavailable.
 
-### 3. Install frontend dependencies
+### 3. Restore .NET packages
+
+```powershell
+dotnet restore
+```
+
+This restores all NuGet dependencies (EF Core SQL Server, EF Core Tools, Active Directory LDAP, etc.) listed in `mvc_boilerplate.csproj`.
+
+> **Prerequisite:** Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). The project pins `10.0.401` via `global.json` (rolls forward to the latest 10.0.x feature band).
+
+### 4. Install frontend dependencies
 
 ```powershell
 npm install
 ```
 
-### 4. Build CSS and JS assets
+### 5. Build CSS and JS assets
 
 **Development (watch mode):**
 ```powershell
@@ -108,7 +118,7 @@ npm run build:prod
 npm run watch
 ```
 
-### 5. Apply database migrations
+### 6. Apply database migrations
 
 ```powershell
 dotnet ef database update
@@ -116,7 +126,7 @@ dotnet ef database update
 
 This runs all EF Core migrations and seeds the default SuperAdmin account.
 
-### 6. Run the application
+### 7. Run the application
 
 ```powershell
 dotnet watch run
